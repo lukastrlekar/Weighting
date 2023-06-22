@@ -1,12 +1,11 @@
 source("https://raw.githubusercontent.com/lukastrlekar/Weighting/main/Skripta_primerjava_povprecji.R")
 
-library(here)
-
-podatki1 <- haven::read_spss(file = here("2. CDI, PANDA, 21. val, končano, uteži.sav"),
+podatki1 <- haven::read_spss(file = "2. CDI, PANDA, 21. val, koncano, uteži.sav",
                              user_na = TRUE)
 
-podatki2 <- haven::read_spss(file = here("3. Valicon, PANDA - 21. val, končano, uteži.sav"),
+podatki2 <- haven::read_spss(file = "3. Valicon, PANDA - 21. val, koncano, uteži.sav",
                              user_na = TRUE)
+
 
 stevilske_spremenljivke <- c("FINANCE",
                              "SMOKE",
@@ -55,4 +54,5 @@ izvoz_excel_tabel(baza1 = podatki1,
                   utezi1 = podatki1$weights,
                   utezi2 = podatki2$weights,
                   stevilske_spremenljivke = stevilske_spremenljivke,
-                  nominalne_spremenljivke = nominalne_spremenljivke)
+                  nominalne_spremenljivke = nominalne_spremenljivke,
+                  file)

@@ -12,7 +12,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                               utezi1 = NULL,
                               utezi2 = NULL,
                               stevilske_spremenljivke = NULL,
-                              nominalne_spremenljivke = NULL) {
+                              nominalne_spremenljivke = NULL,
+                              file) {
   
   if(!is.data.frame(baza1) || !is.data.frame(baza2)){
     stop("Baza mora biti SPSS podatkovni okvir.")
@@ -36,6 +37,9 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   
   wb <- createWorkbook()
   
+  addWorksheet(wb = wb, sheetName = "Opozorila", gridLines = FALSE)
+  
+  warning_counter <- FALSE
   
   if(!is.null(stevilske_spremenljivke)){
     # Številske spremenljivke -------------------------------------------------
@@ -43,9 +47,15 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     imena_st_1 <- names(baza1)[names(baza1) %in% stevilske_spremenljivke]
     imena_st_2 <- names(baza2)[names(baza2) %in% stevilske_spremenljivke]
     
+    non_st_spr <- union(setdiff(imena_st_1, imena_st_2), setdiff(imena_st_2, imena_st_1))
+    
     if(length(imena_st_1) != length(imena_st_2)){
-      warning("Imena podanih spremenljivk se ne ujemajo v obeh bazah.")
-      # dodaj ... še kere spremenljivke
+      warning(paste("Imena podanih številskih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_st_spr, collapse = ", ")))
+      
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,1),
+                x = paste("Imena podanih številskih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_st_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
+      
+      warning_counter <- TRUE
     }
     
     # izberemo samo spremenljivke, ki so prisotne v 1. in 2. bazi
@@ -54,6 +64,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     # pretvorimo spss manjkajoče vrednosti v prave manjkajoče (NA) in uredimo bazi v isti vrstni red spremenljivk
     baza1_na <- user_na_to_na(baza1[,stevilske_spremenljivke, drop = FALSE])
     baza2_na <- user_na_to_na(baza2[,stevilske_spremenljivke, drop = FALSE])
+    
+    # preverimo, da je isto število kategorij v obeh bazah
+    levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels"))
+    levels2 <- lapply(stevilske_spremenljivke, function(x) attr(baza2_na[[x]], "labels"))
+    
+    indeksi <- sapply(seq_along(stevilske_spremenljivke), function(i) all(names(levels1[[i]]) == names(levels2[[i]])))
+    
+    if(!all(indeksi)){
+      warning(paste("Kategorije se pri številski/h spremenljivki/ah", paste(stevilske_spremenljivke[!indeksi == TRUE], collapse = ", "), "ne ujemajo. Te spremenljivke niso bile odstranjene iz analiz, vendar svetujemo previdnost pri analizi."))
+      
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,2),
+                x = paste("Kategorije se pri številski/h spremenljivki/ah", paste(stevilske_spremenljivke[!indeksi == TRUE], collapse = ", "), "ne ujemajo. Te spremenljivke niso bile odstranjene iz analiz, vendar svetujemo previdnost pri analizi."))
+      
+      warning_counter <- TRUE
+    }
     
     # tabela
     tabela_st <- data.frame("Spremenljivka" = stevilske_spremenljivke,
@@ -160,7 +185,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                         halign = "center", valign = "center"))
     
     writeData(wb = wb, sheet = "Opisne statistike",
-              x = "NEUTEŽENE STATISTIKE", xy = c(5, 1))
+              x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 1))
+    
+    addStyle(wb = wb, sheet = "Opisne statistike",
+             style = createStyle(fontSize = 9),
+             rows = 1, cols = 1)
+    
+    writeData(wb = wb, sheet = "Opisne statistike",
+              x = "Neutežene statistike", xy = c(5, 1))
     
     mergeCells(wb = wb, sheet = "Opisne statistike", cols = 5:13, rows = 1)
     
@@ -179,7 +211,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
              gridExpand = TRUE, stack = TRUE)
     
     writeData(wb = wb, sheet = "Opisne statistike",
-              x = "UTEŽENE STATISTIKE", xy = c(14, 1))
+              x = "Utežene statistike", xy = c(14, 1))
     
     mergeCells(wb = wb, sheet = "Opisne statistike", cols = 14:22, rows = 1)
     
@@ -204,19 +236,23 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   
   if(!is.null(nominalne_spremenljivke)){
     # Nominalne spremenljivke -------------------------------------------------
+
+    imena_nom_1 <- names(baza1)[names(baza1) %in% nominalne_spremenljivke]
+    imena_nom_2 <- names(baza2)[names(baza2) %in% nominalne_spremenljivke]
     
-    indeksi_nom_1 <- names(baza1) %in% nominalne_spremenljivke
-    indeksi_nom_2 <- names(baza2) %in% nominalne_spremenljivke
-    
-    non_spr <- union(setdiff(names(baza1)[indeksi_nom_1], names(baza2)[indeksi_nom_2]), setdiff(names(baza2)[indeksi_nom_2], names(baza1)[indeksi_nom_1]))
+    non_spr <- union(setdiff(imena_nom_1, imena_nom_2), setdiff(imena_nom_2, imena_nom_1))
     
     if(length(non_spr) != 0){
-      warning(paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke:",
-                    paste(non_spr, collapse = ", ")))
+      warning(paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
+      
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,4),
+                x = paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
+      
+      warning_counter <- TRUE
     }
     
     # izberemo samo spremenljivke, ki so prisotne v 1. in 2. bazi
-    nominalne_spremenljivke <- names(baza1)[indeksi_nom_1][names(baza1)[indeksi_nom_1] %in% names(baza2)[indeksi_nom_2]]
+    nominalne_spremenljivke <- imena_nom_1[imena_nom_1 %in% imena_nom_2]
     
     # funkcija za utežene frekvence
     weighted_table = function(x, weights) {
@@ -229,102 +265,101 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       data1 <- as_factor(user_na_to_na(baza1[[spr]]), levels = "both")
       data2 <- as_factor(user_na_to_na(baza2[[spr]]), levels = "both")
       
-      if(length(levels(data1)) != length(levels(data2))){
-        stop(paste("Različno število kategorij v bazah pri spremenljivki", spr, "."))
-      }
-      
-      
       if(!all(levels(data1) == levels(data2))){
-        warning(paste("Kategorije v bazah se pri spremenljivki", spr, "ne ujemajo. Preverite in po potrebi popravite."))
+        warning(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        
+        return(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        
+      } else {
+        
+        ## Neutežene statistike ----------------------------------------------------
+        
+        tabela_nom <- as.data.frame(table(data1))
+        names(tabela_nom) <- c(paste0(spr, " - ", attr(x = baza1[[spr]], which = "label")),
+                               paste0("N - ", ime_baza1))
+        tabela_nom[,1] <- as.character(tabela_nom[,1])
+        
+        tabela_nom[[paste0("N - ", ime_baza2)]] <- as.data.frame(table(data2))[,2]
+        
+        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100
+        
+        tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
+        
+        tabela_nom[["Razlika v deležih - absolutna"]] <- tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom[[paste0("Delež (%) - ", ime_baza1)]]
+        
+        tabela_nom[["Razlika v deležih - relativna (%)"]] <- (tabela_nom[["Razlika v deležih - absolutna"]]/tabela_nom[[paste0("Delež (%) - ", ime_baza1)]])*100
+        
+        dummies1 <- weights::dummify(data1, keep.na = TRUE)
+        dummies2 <- weights::dummify(data2, keep.na = TRUE)
+        
+        # t-test
+        statistika_nom <- lapply(1:nrow(tabela_nom), FUN = function(i){
+          test <- t.test(x = dummies1[,i], y = dummies2[,i],
+                         paired = FALSE, var.equal = FALSE)
+          
+          c("t" = test$statistic[[1]],
+            "p" = test$p.value)
+        })
+        
+        tabela_nom[["T-vrednost"]] <- sapply(statistika_nom, function(x) x[["t"]])
+        
+        tabela_nom[["P-vrednost"]] <- sapply(statistika_nom, function(x) x[["p"]])
+        
+        tabela_nom[["Signifikanca"]] <- weights::starmaker(tabela_nom[["P-vrednost"]])
+        
+        # Skupaj seštevek
+        temp_df <- data.frame(t(c(NA, colSums(tabela_nom[,2:5]), rep(NA, ncol(tabela_nom)-5))))
+        names(temp_df) <- names(tabela_nom)
+        
+        tabela_nom <- rbind(tabela_nom, temp_df)
+        tabela_nom[nrow(tabela_nom),1] <- "Skupaj"
+        
+        ## Utežene statistike ------------------------------------------------------
+        
+        tabela_nom_u <- data.frame(row.names = seq_along(statistika_nom))
+        
+        # Utežena frekvenca baza 1
+        tabela_nom_u[[paste0("N - ", ime_baza1)]] <- weighted_table(data1, utezi1)
+        
+        # Utežena frekvenca baza 2
+        tabela_nom_u[[paste0("N - ", ime_baza2)]] <- weighted_table(data2, utezi2)
+        
+        # Utežen delež baza 1
+        tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom_u[[paste0("N - ", ime_baza1)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza1)]]))*100
+        
+        # Utežen delež baza 2
+        tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom_u[[paste0("N - ", ime_baza2)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza2)]]))*100
+        
+        # Absolutna razlika uteženih deležev
+        tabela_nom_u[["Razlika v deležih - absolutna"]] <- tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]]
+        
+        # Relativna razlika uteženih deležev
+        tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]])*100
+        
+        # Utežen t-test
+        utezena_statistika_nom <- lapply(1:nrow(tabela_nom_u), FUN = function(i){
+          test <- weights::wtd.t.test(x = dummies1[,i], y = dummies2[,i],
+                                      weight = utezi1, weighty = utezi2, samedata = FALSE)
+          
+          c("t" = test$coefficients[["t.value"]],
+            "p" = test$coefficients[["p.value"]])
+        })
+        
+        tabela_nom_u[["T-vrednost"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
+        
+        tabela_nom_u[["P-vrednost"]] <- sapply(utezena_statistika_nom, function(x) x[["p"]])
+        
+        tabela_nom_u[["Signifikanca"]] <- weights::starmaker(tabela_nom_u[["P-vrednost"]])
+        
+        # Skupaj seštevek
+        temp_df_u <- data.frame(t(c(colSums(tabela_nom_u[,1:4]), rep(NA, ncol(tabela_nom_u)-4))))
+        names(temp_df_u) <- names(tabela_nom_u)
+        
+        tabela_nom_u <- rbind(tabela_nom_u, temp_df_u)
+        
+        # return function result
+        return(cbind(tabela_nom, tabela_nom_u))
       }
-      
-      ## Neutežene statistike ----------------------------------------------------
-      
-      tabela_nom <- as.data.frame(table(data1))
-      names(tabela_nom) <- c(paste0(spr, " - ", attr(x = baza1[[spr]], which = "label")),
-                             paste0("N - ", ime_baza1))
-      tabela_nom[,1] <- as.character(tabela_nom[,1])
-      
-      tabela_nom[[paste0("N - ", ime_baza2)]] <- as.data.frame(table(data2))[,2]
-      
-      tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100
-      
-      tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
-      
-      tabela_nom[["Razlika v deležih - absolutna"]] <- tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom[[paste0("Delež (%) - ", ime_baza1)]]
-      
-      tabela_nom[["Razlika v deležih - relativna (%)"]] <- (tabela_nom[["Razlika v deležih - absolutna"]]/tabela_nom[[paste0("Delež (%) - ", ime_baza2)]])*100
-      
-      dummies1 <- weights::dummify(data1, keep.na = TRUE)
-      dummies2 <- weights::dummify(data2, keep.na = TRUE)
-      
-      # t-test
-      statistika_nom <- lapply(1:nrow(tabela_nom), FUN = function(i){
-        test <- t.test(x = dummies1[,i], y = dummies2[,i],
-                       paired = FALSE, var.equal = FALSE)
-        
-        c("t" = test$statistic[[1]],
-          "p" = test$p.value)
-      })
-      
-      tabela_nom[["T-vrednost"]] <- sapply(statistika_nom, function(x) x[["t"]])
-      
-      tabela_nom[["P-vrednost"]] <- sapply(statistika_nom, function(x) x[["p"]])
-      
-      tabela_nom[["Signifikanca"]] <- weights::starmaker(tabela_nom[["P-vrednost"]])
-      
-      # Skupaj seštevek
-      temp_df <- data.frame(t(c(NA, colSums(tabela_nom[,2:5]), rep(NA, ncol(tabela_nom)-5))))
-      names(temp_df) <- names(tabela_nom)
-      
-      tabela_nom <- rbind(tabela_nom, temp_df)
-      tabela_nom[nrow(tabela_nom),1] <- "Skupaj"
-      
-      ## Utežene statistike ------------------------------------------------------
-      
-      tabela_nom_u <- data.frame(row.names = seq_along(statistika_nom))
-      
-      # Utežena frekvenca baza 1
-      tabela_nom_u[[paste0("N - ", ime_baza1)]] <- weighted_table(data1, utezi1)
-      
-      # Utežena frekvenca baza 2
-      tabela_nom_u[[paste0("N - ", ime_baza2)]] <- weighted_table(data2, utezi2)
-      
-      # Utežen delež baza 1
-      tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom_u[[paste0("N - ", ime_baza1)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza1)]]))*100
-      
-      # Utežen delež baza 2
-      tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom_u[[paste0("N - ", ime_baza2)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza2)]]))*100
-      
-      # Absolutna razlika uteženih deležev
-      tabela_nom_u[["Razlika v deležih - absolutna"]] <- tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]]
-      
-      # Relativna razlika uteženih deležev
-      tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]])*100
-      
-      # Utežen t-test
-      utezena_statistika_nom <- lapply(1:nrow(tabela_nom_u), FUN = function(i){
-        test <- weights::wtd.t.test(x = dummies1[,i], y = dummies2[,i],
-                                    weight = utezi1, weighty = utezi2, samedata = FALSE)
-        
-        c("t" = test$coefficients[["t.value"]],
-          "p" = test$coefficients[["p.value"]])
-      })
-      
-      tabela_nom_u[["T-vrednost"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
-      
-      tabela_nom_u[["P-vrednost"]] <- sapply(utezena_statistika_nom, function(x) x[["p"]])
-      
-      tabela_nom_u[["Signifikanca"]] <- weights::starmaker(tabela_nom_u[["P-vrednost"]])
-      
-      # Skupaj seštevek
-      temp_df_u <- data.frame(t(c(colSums(tabela_nom_u[,1:4]), rep(NA, ncol(tabela_nom_u)-4))))
-      names(temp_df_u) <- names(tabela_nom_u)
-      
-      tabela_nom_u <- rbind(tabela_nom_u, temp_df_u)
-      
-      # return function result
-      return(cbind(tabela_nom, tabela_nom_u))
     }
     
     
@@ -332,9 +367,30 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     factor_tables <- lapply(nominalne_spremenljivke, function(x) tabela_nominalne(spr = x, baza1, baza2, utezi1, utezi2))
     
+    # dodamo še opozorila, če so prisotna
+    vsota <- cumsum(sapply(factor_tables, is.character))
+    
+    for(i in seq_along(factor_tables)){
+      if(is.character(factor_tables[[i]])){
+        writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 4 + vsota[i],
+                  x = factor_tables[[i]])
+        
+        warning_counter <- TRUE
+      }
+    }
+    
+    factor_tables <- factor_tables[!sapply(factor_tables, is.character)]
+    
     addWorksheet(wb = wb,
                  sheetName = "Frekvencne tabele",
                  gridLines = FALSE)
+    
+    writeData(wb = wb, sheet = "Frekvencne tabele",
+              x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 1))
+    
+    addStyle(wb = wb, sheet = "Frekvencne tabele",
+             style = createStyle(fontSize = 9),
+             rows = 1, cols = 1)
     
     # starting row = number of rows of previous table
     # + 2 (for the header and to add a empty row)
@@ -353,7 +409,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                           halign = "center", valign = "center"))
       
       writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = "NEUTEŽENE STATISTIKE", startCol = 2, startRow = start_rows[i]-1)
+                x = "Neutežene statistike", startCol = 2, startRow = start_rows[i]-1)
       
       mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 2:10, rows = start_rows[i]-1)
       
@@ -368,7 +424,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = "UTEŽENE STATISTIKE", startCol = 11, startRow = start_rows[i]-1)
+                x = "Utežene statistike", startCol = 11, startRow = start_rows[i]-1)
       
       mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 11:19, rows = start_rows[i]-1)
       
@@ -399,10 +455,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     setColWidths(wb = wb, sheet = "Frekvencne tabele", cols = 1, widths = 60)
     
   }
+  
+  if(warning_counter == FALSE){
+    writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 1,
+              x = "Ni opozoril")
+  }
 
   # shranimo excel datoteko
-  saveWorkbook(wb = wb, file = "Statistike.xlsx", overwrite = TRUE)
-  
+  saveWorkbook(wb = wb, file = file, overwrite = TRUE)
 }
 
 
