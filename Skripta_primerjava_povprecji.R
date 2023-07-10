@@ -4,6 +4,8 @@ library(labelled)
 library(weights)
 library(openxlsx)
 
+# TODO
+# Dodaj število značilnih in rel. razlik nad 5%, 10%... (glej predlog excel Andreja)
 
 izvoz_excel_tabel <- function(baza1 = NULL,
                               baza2 = NULL,
@@ -95,10 +97,10 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     ## Neutežene statistike ----------------------------------------------------
     
     # N neutežen baza 1
-    tabela_st[[paste0("N - ", ime_baza1)]] <- colSums(!sapply(baza1_na, is.na))
+    tabela_st[[paste0("N - ", ime_baza1)]] <- colSums(!is.na(baza1_na))
     
     # N neutežen baza 2
-    tabela_st[[paste0("N - ", ime_baza2)]] <- colSums(!sapply(baza2_na, is.na))
+    tabela_st[[paste0("N - ", ime_baza2)]] <- colSums(!is.na(baza2_na))
     
     # Neutežen Welchev t-test
     # var 0 ne bo delovalo!
@@ -281,7 +283,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         tabela_nom[[paste0("N - ", ime_baza2)]] <- as.data.frame(table(data2))[,2]
         
-        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100
+        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100 # popravi da bodo deleži iz statistik
         
         tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
         
@@ -293,7 +295,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         dummies2 <- weights::dummify(data2, keep.na = TRUE)
         
         # t-test
-        statistika_nom <- lapply(1:nrow(tabela_nom), FUN = function(i){
+        statistika_nom <- lapply(1:nrow(tabela_nom), FUN = function(i){ # popravi 1:nrow
           test <- t.test(x = dummies1[,i], y = dummies2[,i],
                          paired = FALSE, var.equal = FALSE)
           
@@ -379,7 +381,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       }
     }
     
-    factor_tables <- factor_tables[!sapply(factor_tables, is.character)]
+    factor_tables <- factor_tables[!sapply(factor_tables, is.character)] # poneostavi brez sapply?
     
     addWorksheet(wb = wb,
                  sheetName = "Frekvencne tabele",
