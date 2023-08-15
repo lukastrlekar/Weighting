@@ -4,6 +4,9 @@ library(labelled)
 library(weights)
 library(openxlsx)
 
+# TODO
+# pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
+
 # pomožne funkcije
 
 # funkcija ki prešteje št. relativnih razlik glede na intervale in št. stat. značilnih spremenljivk
@@ -382,7 +385,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     setColWidths(wb = wb, sheet = "Povzetek", cols = 1:19,
                  widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 8), 2)))
     
-    setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 25))
+    setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 44))
     
     
     # statistike
@@ -511,11 +514,11 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i) wtd_t_test(x = dummies1[,i], y = dummies2[,i]))
         
-        tabela_nom[["T-vrednost"]] <- sapply(statistika_nom, function(x) x[["t"]])
+        tabela_nom[["t"]] <- sapply(statistika_nom, function(x) x[["t"]])
         
-        tabela_nom[["P-vrednost"]] <- sapply(statistika_nom, function(x) x[["p"]])
+        tabela_nom[["p"]] <- sapply(statistika_nom, function(x) x[["p"]])
         
-        tabela_nom[["Signifikanca"]] <- weights::starmaker(tabela_nom[["P-vrednost"]])
+        tabela_nom[["Signifikanca"]] <- weights::starmaker(tabela_nom[["p"]])
         
         # Skupaj seštevek
         temp_df <- data.frame(t(c(NA, colSums(tabela_nom[,2:5]), rep(NA, ncol(tabela_nom)-5))))
@@ -550,12 +553,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         # utezena_statistika_nom <- lapply(1:nrow(tabela_nom_u), FUN = function(i){
         #   test <- weights::wtd.t.test(x = dummies1[,i], y = dummies2[,i],
         #                               weight = utezi1, weighty = utezi2, samedata = FALSE)
-        #   
+        # 
         #   c("t" = test$coefficients[["t.value"]],
         #     "p" = test$coefficients[["p.value"]])
         # })
         
-        utezena_statistika_nom <- lapply(1:nrow(tabela_nom_u), FUN = function(i){
+        utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
           wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2)
         })
         
@@ -732,19 +735,18 @@ izvoz_excel_tabel <- function(baza1 = NULL,
              style = createStyle(fgFill = "#FDE9D9"), rows = 17:22, cols = 11:19,
              gridExpand = TRUE, stack = TRUE)
     
-    setRowHeights(wb = wb, sheet = "Povzetek", rows = 15:18, heights = c(20, 20, 25, 25))
+    setRowHeights(wb = wb, sheet = "Povzetek", rows = 15:18, heights = c(20, 20, 25, 44))
     
-    # + opozorilo če n <= 5
-    
+    # opozorilo če n <= 5
     if(any(p_numerus_neutezene_kategorije)) {
       writeData(wb = wb, sheet = "Povzetek",
-                x = paste("Opomba: kategorije (št.:", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. ento niso bile upošptevane v povzetku."),
+                x = paste("Opomba: Kategorije (število:", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
                 startCol = 2, startRow = 23)
     }
     
     if(any(p_numerus_utezene_kategorije)) {
       writeData(wb = wb, sheet = "Povzetek",
-                x = paste("Opomba: kategorije (št.:", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. ento niso bile upošptevane v povzetku."),
+                x = paste("Opomba: Kategorije (število:", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
                 startCol = 11, startRow = 23)
     }
     
@@ -849,9 +851,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   # shranimo excel datoteko
   saveWorkbook(wb = wb, file = file, overwrite = TRUE)
 }
-
-
-
 
 
 

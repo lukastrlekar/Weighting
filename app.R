@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyWidgets)
+library(shinycssloaders)
 
 source("Skripta_primerjava_povprecji.R")
 
@@ -8,6 +9,9 @@ ui <- fluidPage(
 
     # Application title
     titlePanel("Primerjava neuteženih in uteženih povprečji in deležev iz dveh SPSS baz"),
+    
+    tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf",
+           "Priloga - statistični izračuni >>>"),
     
     h3("Nalaganje podatkov"),
     br(),
@@ -132,6 +136,11 @@ server <- function(input, output, session) {
       paste("Statistike.xlsx")
     },
     content = function(file) {
+      showModal(modalDialog(HTML("<h3><center>Prenašanje datoteke</center></h3>"),
+                            shinycssloaders::withSpinner(uiOutput("loading"), type = 8),
+                            footer = NULL))
+      on.exit(removeModal())
+      
       izvoz_excel_tabel(baza1 = podatki1(),
                         baza2 = podatki2(),
                         ime_baza1 = input$ime1,
