@@ -40,7 +40,7 @@ source("https://raw.githubusercontent.com/lukastrlekar/Weighting/main/Skripta_pr
 podatki1 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/2. CDI, PANDA, 21. val, koncano, uteži.sav",
                              user_na = TRUE)
 
-podatki2 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/3. Valicon, PANDA - 21. val, končano, uteži.sav"),
+podatki2 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/3. Valicon, PANDA - 21. val, končano, uteži.sav",
                              user_na = TRUE)
 
 # izberemo številske spremenljivke

@@ -12,3 +12,4 @@ boot <- replicate(1000, ravnotezje_mp(sample(x = data$A1, size = sum(!is.na(data
 
 hist(boot, breaks = 100)
 mean(boot)
+
