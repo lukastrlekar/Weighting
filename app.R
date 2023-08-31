@@ -136,6 +136,17 @@ server <- function(input, output, session) {
       paste("Statistike.xlsx")
     },
     content = function(file) {
+      # if(!isTRUE(all.equal(mean(podatki1()[[input$spr_utezi1]], na.rm = TRUE), 1))){
+      #   showModal(modalDialog(HTML("Povprečje uteži v 1. bazi ni enako 1."),
+      #                         easyClose = TRUE,
+      #                         footer = NULL))
+      # }
+      # 
+      # if(!isTRUE(all.equal(mean(podatki2()[[input$spr_utezi2]], na.rm = TRUE), 1))){
+      #   showModal(modalDialog(HTML("Povprečje uteži v 2. bazi ni enako 1."),
+      #                         easyClose = TRUE,
+      #                         footer = NULL))
+      # }
       showModal(modalDialog(HTML("<h3><center>Prenašanje datoteke</center></h3>"),
                             shinycssloaders::withSpinner(uiOutput("loading"), type = 8),
                             footer = NULL))

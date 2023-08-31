@@ -6,6 +6,7 @@ library(openxlsx)
 
 # TODO
 # pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
+# implementiraj še preverjanje če je t vrednost NA za številske, da se prav prešteje 
 
 # pomožne funkcije
 
@@ -77,24 +78,6 @@ wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL){
 }
 
 
-# # (1)
-# (1/sum(y)^2) * sum(y^2 * (x - weighted.mean(x, y))^2) 
-# 
-# # (2)
-# y1 = y/sum(y)
-# 
-# sum(y1^2 * (x- weighted.mean(x, y1))^2)
-# # 1 = 2
-# 
-# # (3)
-# n1 = sum(y)
-# mu1 = weighted.mean(x,y)
-# u1 = x*y
-# weights_x = y
-# (n1 * var(u1, na.rm = TRUE) + mu1^2 * n1 * var(weights_x, na.rm = TRUE) - 2 * mu1 * n1 * cov(u1, weights_x, use = "complete.obs"))/(sum(weights_x, na.rm = TRUE)^2)
-
-
-
 # glavna funkcija za izvoz tabel v Excel
 izvoz_excel_tabel <- function(baza1 = NULL,
                               baza2 = NULL,
@@ -118,7 +101,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     stop("Uteži morajo biti v obliki numeričnega vektorja.")
   }
   
-  # uteži povpr ni 1
+  if(!isTRUE(all.equal(mean(utezi1, na.rm = TRUE), 1))){
+    stop("Povprečje uteži v 1. bazi ni enako 1.")
+  }
+  
+  if(!isTRUE(all.equal(mean(utezi2, na.rm = TRUE), 1))){
+    stop("Povprečje uteži v 2. bazi ni enako 1.")
+  }
   
   if(!is.null(stevilske_spremenljivke) && !is.character(stevilske_spremenljivke)){
     stop("Podane številske spremenljivke morajo biti v obliki character vector.")
@@ -473,13 +462,18 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     # funkcija za neutežene in utežene frekvenčne statistike
     tabela_nominalne <- function(spr, baza1, baza2, utezi1, utezi2){
       
-      data1 <- as_factor(user_na_to_na(baza1[[spr]]), levels = "both")
-      data2 <- as_factor(user_na_to_na(baza2[[spr]]), levels = "both")
+      data1 <- as_factor(user_na_to_na(baza1[[spr]]))
+      data2 <- as_factor(user_na_to_na(baza2[[spr]]))
       
       if(!all(levels(data1) == levels(data2))){
         warning(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
         
         return(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        
+      } else if(all(is.na(data1)) | all(is.na(data2))) {
+        warning(paste("Spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        
+        return(paste("Spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
       } else {
         
@@ -597,8 +591,25 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     factor_tables <- factor_tables[!sapply(factor_tables, is.character)]
     
+    # skupno število kategorij
+    st_kategorij <- sum(sapply(factor_tables, function(x) sum(x[[1]] != "Skupaj")))
+    
+    # INF ali NaN relativne razlike popravimo
+    factor_tables <- lapply(factor_tables, function(x) {
+      x[is.finite(x[,7]) == FALSE,7] <- x[is.finite(x[,7]) == FALSE,6]
+      x[is.finite(x[,16]) == FALSE,16] <- x[is.finite(x[,16]) == FALSE,15]
+      x
+    })
+    
+    # začasno damo NaN vrednosti p kot 1 (za štetje stat značilnih)
+    temp_factor_tables <- lapply(factor_tables, function(x) {
+      x[is.finite(x[,9]) == FALSE,9] <- 1
+      x[is.finite(x[,18]) == FALSE,18] <- 1
+      x
+    })
+    
     # označi se vrstice, kjer je premajhen numerus za zanesljivo oceno p-vrednosti
-    opozorilo_numerus <- lapply(factor_tables, FUN = function(x) {
+    opozorilo_numerus <- lapply(temp_factor_tables, FUN = function(x) {
       last_row <- length(x[[2]])
       # neuteženi
       n1 <- x[[2]][last_row]
@@ -627,11 +638,15 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     p_numerus_utezene_kategorije <- do.call(c, lapply(opozorilo_numerus, "[[", "p_utez"))
     
     # povzetek za nominalne spr.
-    neutezene_kategorije <- abs(na.omit(do.call(rbind, lapply(factor_tables, "[", c(7, 9)))))
-    utezene_kategorije <- abs(na.omit(do.call(rbind, lapply(factor_tables, "[", c(16, 18)))))
+    neutezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(7, 9)))))
+    # nadomestimo p vrednosti s premajhnim numerusom z 1 (da se jih ne šteje pod stat. značilne)
+    if(any(p_numerus_neutezene_kategorije)) neutezene_kategorije[p_numerus_neutezene_kategorije,][[2]] <- 1
     
-    frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[!p_numerus_neutezene_kategorije,][[2]])
-    frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[!p_numerus_utezene_kategorije,][[2]])
+    utezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(16, 18)))))
+    if(any(p_numerus_utezene_kategorije)) utezene_kategorije[p_numerus_utezene_kategorije,][[2]] <- 1
+    
+    frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[[2]])
+    frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[[2]])
     
     writeData(wb = wb,
               sheet = "Povzetek",
@@ -703,7 +718,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 17)
     
     writeData(wb = wb, sheet = "Povzetek",
-              x = cbind(c(paste("Št. vseh kategorij:", sum(frekvence_rel_razlike_neutezene_nom$sums)),
+              x = cbind(c(paste("Št. vseh kategorij:", st_kategorij),
                           paste("Št. statistično značilnih kategorij (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene_nom$p_sums)),
                           paste("Št. statistično značilnih kategorij (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene_nom$p_sums)))),
               startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
@@ -874,3 +889,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
 #                              "TRUST_NATIONAL_HEALTH",
 #                              "TRUST_SCIENCE",
 #                              "TRUST_POSSK19")
+
+# nominalne_spremenljivke = stevilske_spremenljivke
+
+
