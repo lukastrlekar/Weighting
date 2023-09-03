@@ -7,6 +7,9 @@ library(openxlsx)
 # TODO
 # pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
 # implementiraj še preverjanje če je t vrednost NA za številske, da se prav prešteje 
+# preveri, da če je spr konstanta vrne wtd_t_test NA
+# pri tabelah 2x2 je prop test (p(1-p) varianca ne kot naša popravljena) enako hi-kvadrat testu in se poroča lahko le v nei vrstici p vrednost 
+# popravek p vrednosti pri nominalnih (Holmov?)
 
 # pomožne funkcije
 
@@ -150,8 +153,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     baza2_na <- user_na_to_na(baza2[,stevilske_spremenljivke, drop = FALSE])
     
     # preverimo, da je isto število kategorij v obeh bazah
-    levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels"))
-    levels2 <- lapply(stevilske_spremenljivke, function(x) attr(baza2_na[[x]], "labels"))
+    levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels", exact = TRUE))
+    levels2 <- lapply(stevilske_spremenljivke, function(x) attr(baza2_na[[x]], "labels", exact = TRUE))
     
     indeksi <- sapply(seq_along(stevilske_spremenljivke), function(i) all(names(levels1[[i]]) == names(levels2[[i]])))
     
@@ -166,7 +169,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     # tabela
     tabela_st <- data.frame("Spremenljivka" = stevilske_spremenljivke,
-                            "Labela" = sapply(stevilske_spremenljivke, FUN = function(x) attr(baza1[[x]], which = "label")))
+                            "Labela" = vapply(stevilske_spremenljivke,
+                                              FUN = function(x) {
+                                                labela1 <- attr(baza1[[x]], which = "label", exact = TRUE)
+                                                labela2 <- attr(baza2[[x]], which = "label", exact = TRUE)
+                                                labela2 <- ifelse(is.null(labela2), "", labela2)
+                                                ifelse(is.null(labela1), labela2, labela1)
+                                                },
+                                              FUN.VALUE = character(1)))
     
     # vrne min od tiste baze, kjer je manjša vrednost minimum
     tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
@@ -475,12 +485,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         return(paste("Spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
+      } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
+        warning(paste("Spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+
+        return(paste("Spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+
       } else {
         
         ## Neutežene statistike ----------------------------------------------------
         
+        labela1 <- attr(baza1[[spr]], "label", exact = TRUE)
+        labela2 <- attr(baza2[[spr]], "label", exact = TRUE)
+        labela2 <- ifelse(is.null(labela2), "", labela2)
+        
         tabela_nom <- as.data.frame(table(data1))
-        names(tabela_nom) <- c(paste0(spr, " - ", attr(x = baza1[[spr]], which = "label")),
+        names(tabela_nom) <- c(paste0(spr, " - ", ifelse(is.null(labela1), labela2, labela1)),
                                paste0("N - ", ime_baza1))
         tabela_nom[,1] <- as.character(tabela_nom[,1])
         

@@ -234,8 +234,69 @@ m = replicate(1000, mean(runif(100, 3, 10))/mean(runif(100, 10, 13)))
 hist(m, breaks = 100, freq = FALSE)
 curve(dnorm(x, mean(m), sd(m)), add = TRUE)
 
+# https://www.alexstephenson.me/post/2022-04-02-weighted-variance-in-r/#fn1
+weighted.se.mean <- function(x, w, na.rm = T){
+    ## Remove NAs 
+    if (na.rm) {
+      i <- !is.na(x)
+        w <- w[i]
+        x <- x[i]
+    }
+    
+    ## Calculate effective N and correction factor
+    n_eff <- (sum(w))^2/(sum(w^2))
+    correction = n_eff/(n_eff-1)
+    
+    ## Get weighted variance 
+    numerator = sum(w*(x-weighted.mean(x,w))^2)
+    denominator = sum(w)
+    
+    ## get weighted standard error of the mean 
+    se_x = (correction * (numerator/denominator))/n_eff
+    return(se_x)
+}
 
 
+weighted.se.mean2 <- function(x, weights_x){
+  i <- !is.na(x)
+  x <- x[i]
+  weights_x <- weights_x[i]
+  weights_x <- weights_x/mean(weights_x)
+  
+  mu1 = weighted.mean(x, weights_x)
+  u1 <- x * weights_x
+  se1 <- (var(u1, na.rm = TRUE) + mu1^2 * var(weights_x, na.rm = TRUE) - 2 * mu1 * cov(u1, weights_x))/(sum(weights_x, na.rm = TRUE))
+  se1
+}
+
+weighted.se.mean3 <- function(x, weights){
+    i <- !is.na(x)
+  x <- x[i]
+  weights <- weights[i]
+  weights <- weights/mean(weights)
+  
+  mu = weighted.mean(x, weights)
+  (1/sum(weights)^2) * sum(weights^2 * (x - mu)^2)
+}
+
+weighted.se.mean4 <- function(x, weights){
+  i <- !is.na(x)
+  x <- x[i]
+  weights <- weights[i]
+  weights <- weights/mean(weights)
+  
+  n = sum(!is.na(x))
+  mu = weighted.mean(x, weights)
+  (n/((n-1)*sum(weights)^2)) * sum(weights^2 * (x - mu)^2)
+}
+
+weighted.se.mean(baza1[[stevilske_spremenljivke[3]]], utezi1)
+weighted.se.mean3(baza1[[stevilske_spremenljivke[3]]], utezi1)
+
+weighted.se.mean2(baza1[[stevilske_spremenljivke[3]]], utezi1) # ISTO !!!
+weighted.se.mean4(baza1[[stevilske_spremenljivke[3]]], utezi1)
+
+sum(is.na(baza1[[stevilske_spremenljivke[3]]]))
 ########################################
 w <- weights
 y <- w

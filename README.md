@@ -4,7 +4,7 @@ Pred izvedbo analiz koda preveri, da so imena izbranih spremenljivk enaka v obeh
 
 ## Shiny aplikacija
 
-Lokalno se požene aplikacijo z naslednjo kodo:
+Lokalno se požene aplikacijo z naslednjo kodo (za delovanje so potrebni paketi `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`):
 
 ```
 shiny::runGitHub(repo = "Weighting", username = "lukastrlekar", ref = "main")
