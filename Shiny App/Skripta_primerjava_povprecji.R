@@ -6,9 +6,7 @@ library(openxlsx)
 
 # TODO
 # pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
-# implementiraj še preverjanje če je t vrednost NA za številske, da se prav prešteje 
 # popravek p vrednosti pri nominalnih (Holmov?)
-# daj popravi če ni nič tabel za nominalne da deluje
 
 # pomožne funkcije
 
@@ -162,7 +160,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       warning_counter <- TRUE
     }
     
-    # preverimo, da so spremenljivke res številske in neštevilske odstranimo (tu se odstranijo tudi spremenljivke z vsemi NA)
+    # preverimo, da so spremenljivke res številske in neštevilske odstranimo
     numeric_variables <- vapply(stevilske_spremenljivke, function(x){
       t1 <- is.numeric(baza1_na[[x]]) | is.integer(baza1_na[[x]])
       t2 <- is.numeric(baza2_na[[x]]) | is.integer(baza2_na[[x]])
@@ -178,11 +176,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       stevilske_spremenljivke <- stevilske_spremenljivke[numeric_variables]
     }
     
-    # preverimo in odstranimo spremenljivke z ničelno varianco (konstante)
+    # preverimo in odstranimo spremenljivke z ničelno varianco (konstante) (tu se odstranijo tudi spremenljivke z vsemi NA)
     indeksi_variances <- vapply(stevilske_spremenljivke, function(x){
-      v1 <- 0 == var(baza1_na[[x]], na.rm = TRUE)
-      v2 <- 0 == var(baza2_na[[x]], na.rm = TRUE)
-      any(v1, v2)
+      v1 <- var(baza1_na[[x]], na.rm = TRUE)
+      v1 <- ifelse(is.na(v1), 0, v1)
+      v2 <- var(baza2_na[[x]], na.rm = TRUE)
+      v2 <- ifelse(is.na(v2), 0, v2)
+      any(v1 == 0, v2 == 0)
     }, FUN.VALUE = logical(1), USE.NAMES = FALSE)
     
     if(any(indeksi_variances)){
@@ -303,37 +303,38 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       frekvence_rel_razlike_neutezene <- count_rel_diff(vec = merge_tabela_st[[10]], p_vec = merge_tabela_st[[12]])
       frekvence_rel_razlike_utezene <- count_rel_diff(vec = merge_tabela_st[[17]], p_vec = merge_tabela_st[[19]])
       
+      tbl_st <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+                           # neutežene statistike
+                           "f" = frekvence_rel_razlike_neutezene$sums,
+                           "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
+                           "Kumul f" = frekvence_rel_razlike_neutezene$cumsums,
+                           "Kumul %" = frekvence_rel_razlike_neutezene$cumsums/sum(frekvence_rel_razlike_neutezene$sums),
+                           "f" = frekvence_rel_razlike_neutezene$p_sums,
+                           "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
+                           "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
+                           "Kumul f" = frekvence_rel_razlike_neutezene$p_cumsums,
+                           "Kumul %" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
+                           # utežene statistike
+                           "f" = frekvence_rel_razlike_utezene$sums,
+                           "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
+                           "Kumul f" = frekvence_rel_razlike_utezene$cumsums,
+                           "Kumul %" = frekvence_rel_razlike_utezene$cumsums/sum(frekvence_rel_razlike_utezene$sums),
+                           "f" = frekvence_rel_razlike_utezene$p_sums,
+                           "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
+                           "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
+                           "Kumul f" = frekvence_rel_razlike_utezene$p_cumsums,
+                           "Kumul %" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
+                           check.names = FALSE)
+      
+      tbl_st[is.na(tbl_st)] <- NA
+      
       writeData(wb = wb,
                 sheet = "Povzetek",
-                
-                x = data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
-                               # neutežene statistike
-                               "f" = frekvence_rel_razlike_neutezene$sums,
-                               "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
-                               "Kumul f" = frekvence_rel_razlike_neutezene$cumsums,
-                               "Kumul %" = frekvence_rel_razlike_neutezene$cumsums/sum(frekvence_rel_razlike_neutezene$sums),
-                               "f" = frekvence_rel_razlike_neutezene$p_sums,
-                               "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
-                               "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
-                               "Kumul f" = frekvence_rel_razlike_neutezene$p_cumsums,
-                               "Kumul %" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
-                               
-                               # utežene statistike
-                               "f" = frekvence_rel_razlike_utezene$sums,
-                               "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
-                               "Kumul f" = frekvence_rel_razlike_utezene$cumsums,
-                               "Kumul %" = frekvence_rel_razlike_utezene$cumsums/sum(frekvence_rel_razlike_utezene$sums),
-                               "f" = frekvence_rel_razlike_utezene$p_sums,
-                               "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
-                               "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
-                               "Kumul f" = frekvence_rel_razlike_utezene$p_cumsums,
-                               "Kumul %" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
-                               check.names = FALSE),
-                
+                x = tbl_st,
                 borders = "all", startRow = 4, 
                 headerStyle = createStyle(textDecoration = "bold",
                                           border = c("top", "bottom", "left", "right"),
-                                          halign = "center", valign = "center", wrapText = TRUE), keepNA = FALSE)
+                                          halign = "center", valign = "center", wrapText = TRUE))
       
       writeData(wb = wb, sheet = "Povzetek",
                 x = "Številske spremenljivke", startCol = 2, startRow = 1)
@@ -624,283 +625,278 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     factor_tables <- factor_tables[!vapply(factor_tables, is.character, FUN.VALUE = logical(1))]
     
-    # skupno število kategorij
-    st_kategorij <- sum(sapply(factor_tables, function(x) sum(x[[1]] != "Skupaj")))
-    
-    # INF ali NaN relativne razlike popravimo
-    factor_tables <- lapply(factor_tables, function(x) {
-      x[is.finite(x[,7]) == FALSE,7] <- x[is.finite(x[,7]) == FALSE,6]
-      x[is.finite(x[,16]) == FALSE,16] <- x[is.finite(x[,16]) == FALSE,15]
-      x
-    })
-    
-    # začasno damo NaN vrednosti p kot 1 (za štetje stat značilnih)
-    temp_factor_tables <- lapply(factor_tables, function(x) {
-      x[is.finite(x[,9]) == FALSE,9] <- 1
-      x[is.finite(x[,18]) == FALSE,18] <- 1
-      x
-    })
-    
-    # označi se vrstice, kjer je premajhen numerus za zanesljivo oceno p-vrednosti
-    opozorilo_numerus <- lapply(temp_factor_tables, FUN = function(x) {
-      last_row <- length(x[[2]])
-      # neuteženi
-      n1 <- x[[2]][last_row]
-      n2 <- x[[3]][last_row]
-      rev1 <- n1 - x[[2]][-last_row]
-      rev2 <- n2 - x[[3]][-last_row]
+    if(length(factor_tables) > 0){
       
-      # uteženi podatki
-      n1u <- x[[11]][last_row]
-      n2u <- x[[12]][last_row]
-      rev1u <- n1u - x[[11]][-last_row]
-      rev2u <- n2u - x[[12]][-last_row]
+      # skupno število kategorij
+      st_kategorij <- sum(sapply(factor_tables, function(x) sum(x[[1]] != "Skupaj")))
       
-      neutez <- x[[2]][-last_row] <= 5 | x[[3]][-last_row] <= 5 | rev1 <= 5 | rev2 <= 5
-      utez <- x[[11]][-last_row] <= 5 | x[[12]][-last_row] <= 5 | rev1u <= 5 | rev2u <= 5
-      p_neutez <- x[[9]][-last_row] < 0.05
-      p_utez <- x[[18]][-last_row] < 0.05
+      # INF ali NaN relativne razlike popravimo
+      factor_tables <- lapply(factor_tables, function(x) {
+        x[is.finite(x[,7]) == FALSE,7] <- x[is.finite(x[,7]) == FALSE,6]
+        x[is.finite(x[,16]) == FALSE,16] <- x[is.finite(x[,16]) == FALSE,15]
+        x
+      })
       
-      list(neutez = neutez,
-           utez = utez,
-           p_neutez = p_neutez & neutez,
-           p_utez = p_utez & utez)
-    })
-    
-    p_numerus_neutezene_kategorije <- do.call(c, lapply(opozorilo_numerus, "[[", "p_neutez"))
-    p_numerus_utezene_kategorije <- do.call(c, lapply(opozorilo_numerus, "[[", "p_utez"))
-    
-    # povzetek za nominalne spr.
-    neutezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(7, 9)))))
-    # nadomestimo p vrednosti s premajhnim numerusom z 1 (da se jih ne šteje pod stat. značilne)
-    if(any(p_numerus_neutezene_kategorije)) neutezene_kategorije[p_numerus_neutezene_kategorije,][[2]] <- 1
-    
-    utezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(16, 18)))))
-    if(any(p_numerus_utezene_kategorije)) utezene_kategorije[p_numerus_utezene_kategorije,][[2]] <- 1
-    
-    frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[[2]])
-    frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[[2]])
-    
-    writeData(wb = wb,
-              sheet = "Povzetek",
-              
-              x = data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
-                             # neutežene statistike
-                             "f" = frekvence_rel_razlike_neutezene_nom$sums,
-                             "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
-                             "Kumul f" = frekvence_rel_razlike_neutezene_nom$cumsums,
-                             "Kumul %" = frekvence_rel_razlike_neutezene_nom$cumsums/sum(frekvence_rel_razlike_neutezene_nom$sums),
-                             "f" = frekvence_rel_razlike_neutezene_nom$p_sums,
-                             "% od vseh kategorij" = frekvence_rel_razlike_neutezene_nom$p_sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
-                             "% od relativne razlike" = frekvence_rel_razlike_neutezene_nom$p_sums/frekvence_rel_razlike_neutezene_nom$sums,
-                             "Kumul f" = frekvence_rel_razlike_neutezene_nom$p_cumsums,
-                             "Kumul %" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$p_sums),
-                             
-                             # utežene statistike
-                             "f" = frekvence_rel_razlike_utezene_nom$sums,
-                             "%" = frekvence_rel_razlike_utezene_nom$sums/sum(frekvence_rel_razlike_utezene_nom$sums),
-                             "Kumul f" = frekvence_rel_razlike_utezene_nom$cumsums,
-                             "Kumul %" = frekvence_rel_razlike_utezene_nom$cumsums/sum(frekvence_rel_razlike_utezene_nom$sums),
-                             "f" = frekvence_rel_razlike_utezene_nom$p_sums,
-                             "% od vseh kategorij" = frekvence_rel_razlike_utezene_nom$p_sums/sum(frekvence_rel_razlike_utezene_nom$sums),
-                             "% od relativne razlike" = frekvence_rel_razlike_utezene_nom$p_sums/frekvence_rel_razlike_utezene_nom$sums,
-                             "Kumul f" = frekvence_rel_razlike_utezene_nom$p_cumsums,
-                             "Kumul %" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$p_sums),
-                             check.names = FALSE),
-              
-              borders = "all", startRow = 18,
-              headerStyle = createStyle(textDecoration = "bold",
-                                        wrapText = TRUE,
-                                        border = c("top", "bottom", "left", "right"),
-                                        halign = "center", valign = "center"))
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Nominalne spremenljivke", startCol = 2, startRow = 15)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 15)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Neutežene statistike", startCol = 2, startRow = 16)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:10, rows = 16)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Utežene statistike", startCol = 11, startRow = 16)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 11:19, rows = 16)
-    
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Kategorije", startCol = 2, startRow = 17)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:5, rows = 17)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Kategorije", startCol = 11, startRow = 17)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 11:14, rows = 17)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Od tega statistično značilne kategorije (p < 0.05)", startCol = 6, startRow = 17)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 6:10, rows = 17)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Od tega statistično značilne kategorije (p < 0.05)", startCol = 15, startRow = 17)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 17)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = cbind(c(paste("Št. vseh kategorij:", st_kategorij),
-                          paste("Št. statistično značilnih kategorij (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene_nom$p_sums)),
-                          paste("Št. statistično značilnih kategorij (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene_nom$p_sums)))),
-              startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = cbind(c(paste("Št. vseh nominalnih spremenljivk:", length(factor_tables)),
-                          paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - neuteženi podatki:",
-                                sum(vapply(seq_along(temp_factor_tables), function(i){
-                                  any(temp_factor_tables[[i]][[9]][!opozorilo_numerus[[i]][["p_neutez"]]] < 0.05)
-                                }, FUN.VALUE = logical(1)))),
-                          paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - uteženi podatki:", 
-                                sum(vapply(seq_along(temp_factor_tables), function(i){
-                                  any(temp_factor_tables[[i]][[18]][!opozorilo_numerus[[i]][["p_utez"]]] < 0.05)
-                                }, FUN.VALUE = logical(1)))))),
-              startCol = 1, startRow = 28, rowNames = FALSE, colNames = FALSE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                 fontSize = 12),
-             rows = 15:16, cols = 1:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                 border = c("top", "bottom", "left", "right")),
-             rows = 17, cols = 1:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(numFmt = "0.0%"),
-             rows = 19:22, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(fgFill = "#DAEEF3"), rows = 17:22, cols = 2:10,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(fgFill = "#FDE9D9"), rows = 17:22, cols = 11:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    setRowHeights(wb = wb, sheet = "Povzetek", rows = 15:18, heights = c(20, 20, 25, 44))
-    
-    # opozorilo če n <= 5
-    if(any(p_numerus_neutezene_kategorije)) {
-      writeData(wb = wb, sheet = "Povzetek",
-                x = paste("Opomba: Kategorije (število:", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
-                startCol = 2, startRow = 23)
-    }
-    
-    if(any(p_numerus_utezene_kategorije)) {
-      writeData(wb = wb, sheet = "Povzetek",
-                x = paste("Opomba: Kategorije (število:", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
-                startCol = 11, startRow = 23)
-    }
-    
-    # statistike
-    addWorksheet(wb = wb,
-                 sheetName = "Frekvencne tabele",
-                 gridLines = FALSE)
-    
-    writeData(wb = wb, sheet = "Frekvencne tabele",
-              x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 2))
-    
-    addStyle(wb = wb, sheet = "Frekvencne tabele",
-             style = createStyle(fontSize = 9),
-             rows = 2, cols = 1)
-    
-    # starting row = number of rows of previous table
-    start_rows <- c(0, cumsum(3 + sapply(factor_tables, nrow)[-length(factor_tables)])) + 3
-    
-    for(i in seq_along(factor_tables)){
+      # začasno damo NaN vrednosti p kot 1 (za štetje stat značilnih)
+      temp_factor_tables <- lapply(factor_tables, function(x) {
+        x[is.finite(x[,9]) == FALSE,9] <- 1
+        x[is.finite(x[,18]) == FALSE,18] <- 1
+        x
+      })
       
-      writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = factor_tables[[i]],
-                borders = "all",
-                startRow = start_rows[i],
+      # označi se vrstice, kjer je premajhen numerus za zanesljivo oceno p-vrednosti
+      opozorilo_numerus <- lapply(temp_factor_tables, FUN = function(x) {
+        last_row <- length(x[[2]])
+        # neuteženi
+        n1 <- x[[2]][last_row]
+        n2 <- x[[3]][last_row]
+        rev1 <- n1 - x[[2]][-last_row]
+        rev2 <- n2 - x[[3]][-last_row]
+        
+        # uteženi podatki
+        n1u <- x[[11]][last_row]
+        n2u <- x[[12]][last_row]
+        rev1u <- n1u - x[[11]][-last_row]
+        rev2u <- n2u - x[[12]][-last_row]
+        
+        neutez <- x[[2]][-last_row] <= 5 | x[[3]][-last_row] <= 5 | rev1 <= 5 | rev2 <= 5
+        utez <- x[[11]][-last_row] <= 5 | x[[12]][-last_row] <= 5 | rev1u <= 5 | rev2u <= 5
+        p_neutez <- x[[9]][-last_row] < 0.05
+        p_utez <- x[[18]][-last_row] < 0.05
+        
+        list(neutez = neutez,
+             utez = utez,
+             p_neutez = p_neutez & neutez,
+             p_utez = p_utez & utez)
+      })
+      
+      p_numerus_neutezene_kategorije <- do.call(c, lapply(opozorilo_numerus, "[[", "p_neutez"))
+      p_numerus_utezene_kategorije <- do.call(c, lapply(opozorilo_numerus, "[[", "p_utez"))
+      
+      # povzetek za nominalne spr.
+      neutezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(7, 9)))))
+      # nadomestimo p vrednosti s premajhnim numerusom z 1 (da se jih ne šteje pod stat. značilne)
+      if(any(p_numerus_neutezene_kategorije)) neutezene_kategorije[p_numerus_neutezene_kategorije,][[2]] <- 1
+      
+      utezene_kategorije <- abs(na.omit(do.call(rbind, lapply(temp_factor_tables, "[", c(16, 18)))))
+      if(any(p_numerus_utezene_kategorije)) utezene_kategorije[p_numerus_utezene_kategorije,][[2]] <- 1
+      
+      frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[[2]])
+      frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[[2]])
+      
+      tbl_nom <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+                            # neutežene statistike
+                            "f" = frekvence_rel_razlike_neutezene_nom$sums,
+                            "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
+                            "Kumul f" = frekvence_rel_razlike_neutezene_nom$cumsums,
+                            "Kumul %" = frekvence_rel_razlike_neutezene_nom$cumsums/sum(frekvence_rel_razlike_neutezene_nom$sums),
+                            "f" = frekvence_rel_razlike_neutezene_nom$p_sums,
+                            "% od vseh kategorij" = frekvence_rel_razlike_neutezene_nom$p_sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
+                            "% od relativne razlike" = frekvence_rel_razlike_neutezene_nom$p_sums/frekvence_rel_razlike_neutezene_nom$sums,
+                            "Kumul f" = frekvence_rel_razlike_neutezene_nom$p_cumsums,
+                            "Kumul %" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$p_sums),
+                            # utežene statistike
+                            "f" = frekvence_rel_razlike_utezene_nom$sums,
+                            "%" = frekvence_rel_razlike_utezene_nom$sums/sum(frekvence_rel_razlike_utezene_nom$sums),
+                            "Kumul f" = frekvence_rel_razlike_utezene_nom$cumsums,
+                            "Kumul %" = frekvence_rel_razlike_utezene_nom$cumsums/sum(frekvence_rel_razlike_utezene_nom$sums),
+                            "f" = frekvence_rel_razlike_utezene_nom$p_sums,
+                            "% od vseh kategorij" = frekvence_rel_razlike_utezene_nom$p_sums/sum(frekvence_rel_razlike_utezene_nom$sums),
+                            "% od relativne razlike" = frekvence_rel_razlike_utezene_nom$p_sums/frekvence_rel_razlike_utezene_nom$sums,
+                            "Kumul f" = frekvence_rel_razlike_utezene_nom$p_cumsums,
+                            "Kumul %" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$p_sums),
+                            check.names = FALSE)
+      
+      tbl_nom[is.na(tbl_nom)] <- NA
+      
+      writeData(wb = wb,
+                sheet = "Povzetek",
+                x = tbl_nom,
+                borders = "all", startRow = 18,
                 headerStyle = createStyle(textDecoration = "bold",
                                           wrapText = TRUE,
                                           border = c("top", "bottom", "left", "right"),
                                           halign = "center", valign = "center"))
       
-      writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = "Neutežene statistike", startCol = 2, startRow = start_rows[i]-1)
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Nominalne spremenljivke", startCol = 2, startRow = 15)
       
-      mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 2:10, rows = start_rows[i]-1)
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 15)
       
-      addStyle(wb = wb, sheet = "Frekvencne tabele",
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Neutežene statistike", startCol = 2, startRow = 16)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:10, rows = 16)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Utežene statistike", startCol = 11, startRow = 16)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 11:19, rows = 16)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Kategorije", startCol = 2, startRow = 17)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:5, rows = 17)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Kategorije", startCol = 11, startRow = 17)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 11:14, rows = 17)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Od tega statistično značilne kategorije (p < 0.05)", startCol = 6, startRow = 17)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 6:10, rows = 17)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Od tega statistično značilne kategorije (p < 0.05)", startCol = 15, startRow = 17)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 17)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = cbind(c(paste("Št. vseh kategorij:", st_kategorij),
+                            paste("Št. statistično značilnih kategorij (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene_nom$p_sums)),
+                            paste("Št. statistično značilnih kategorij (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene_nom$p_sums)))),
+                startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = cbind(c(paste("Št. vseh nominalnih spremenljivk:", length(factor_tables)),
+                            paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - neuteženi podatki:",
+                                  sum(vapply(seq_along(temp_factor_tables), function(i){
+                                    any(temp_factor_tables[[i]][[9]][!opozorilo_numerus[[i]][["p_neutez"]]] < 0.05)
+                                  }, FUN.VALUE = logical(1)))),
+                            paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - uteženi podatki:", 
+                                  sum(vapply(seq_along(temp_factor_tables), function(i){
+                                    any(temp_factor_tables[[i]][[18]][!opozorilo_numerus[[i]][["p_utez"]]] < 0.05)
+                                  }, FUN.VALUE = logical(1)))))),
+                startCol = 1, startRow = 28, rowNames = FALSE, colNames = FALSE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
                style = createStyle(textDecoration = "bold",
                                    halign = "center", valign = "center",
                                    fontSize = 12),
-               rows = start_rows[i]-1, cols = c(2, 11),
+               rows = 15:16, cols = 1:19,
                gridExpand = TRUE, stack = TRUE)
       
-      addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(fgFill = "#DAEEF3"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 2:10,
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   border = c("top", "bottom", "left", "right")),
+               rows = 17, cols = 1:19,
                gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(numFmt = "0.0%"),
+               rows = 19:22, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(fgFill = "#DAEEF3"), rows = 17:22, cols = 2:10,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(fgFill = "#FDE9D9"), rows = 17:22, cols = 11:19,
+               gridExpand = TRUE, stack = TRUE)
+      
+      setRowHeights(wb = wb, sheet = "Povzetek", rows = 15:18, heights = c(20, 20, 25, 44))
+      
+      # opozorilo če n <= 5
+      if(any(p_numerus_neutezene_kategorije)) {
+        writeData(wb = wb, sheet = "Povzetek",
+                  x = paste("Opomba: Kategorije (število:", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
+                  startCol = 2, startRow = 23)
+      }
+      
+      if(any(p_numerus_utezene_kategorije)) {
+        writeData(wb = wb, sheet = "Povzetek",
+                  x = paste("Opomba: Kategorije (število:", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
+                  startCol = 11, startRow = 23)
+      }
+      
+      # statistike
+      addWorksheet(wb = wb,
+                   sheetName = "Frekvencne tabele",
+                   gridLines = FALSE)
       
       writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = "Utežene statistike", startCol = 11, startRow = start_rows[i]-1)
-      
-      mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 11:19, rows = start_rows[i]-1)
-      
-      # addStyle(wb = wb, sheet = "Frekvencne tabele",
-      #          style = createStyle(textDecoration = "bold",
-      #                              halign = "center", valign = "center",
-      #                              fontSize = 12),
-      #          rows = start_rows[i]-1, cols = 11,
-      #          gridExpand = TRUE, stack = TRUE)
+                x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 2))
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(fgFill = "#FDE9D9"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 11:19,
+               style = createStyle(fontSize = 9),
+               rows = 2, cols = 1)
+      
+      # starting row = number of rows of previous table
+      start_rows <- c(0, cumsum(3 + sapply(factor_tables, nrow)[-length(factor_tables)])) + 3
+      
+      for(i in seq_along(factor_tables)){
+        
+        writeData(wb = wb, sheet = "Frekvencne tabele",
+                  x = factor_tables[[i]],
+                  borders = "all",
+                  startRow = start_rows[i],
+                  headerStyle = createStyle(textDecoration = "bold",
+                                            wrapText = TRUE,
+                                            border = c("top", "bottom", "left", "right"),
+                                            halign = "center", valign = "center"))
+        
+        writeData(wb = wb, sheet = "Frekvencne tabele",
+                  x = "Neutežene statistike", startCol = 2, startRow = start_rows[i]-1)
+        
+        mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 2:10, rows = start_rows[i]-1)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(textDecoration = "bold",
+                                     halign = "center", valign = "center",
+                                     fontSize = 12),
+                 rows = start_rows[i]-1, cols = c(2, 11),
+                 gridExpand = TRUE, stack = TRUE)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(fgFill = "#DAEEF3"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 2:10,
+                 gridExpand = TRUE, stack = TRUE)
+        
+        writeData(wb = wb, sheet = "Frekvencne tabele",
+                  x = "Utežene statistike", startCol = 11, startRow = start_rows[i]-1)
+        
+        mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 11:19, rows = start_rows[i]-1)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(fgFill = "#FDE9D9"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 11:19,
+                 gridExpand = TRUE, stack = TRUE)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$neutez == TRUE), cols = 2:10,
+                 gridExpand = TRUE, stack = TRUE)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$utez == TRUE), cols = 11:19,
+                 gridExpand = TRUE, stack = TRUE)
+      }
+      
+      if(any(unlist(opozorilo_numerus))) {
+        writeData(wb = wb, sheet = "Frekvencne tabele",
+                  x = "Opozorilo: Število enot v celici je premajhno za zanesljivo oceno p-vrednosti", startCol = 1, startRow = 1)
+        
+        addStyle(wb = wb, sheet = "Frekvencne tabele",
+                 style = createStyle(fgFill = "#FF5D5D", wrapText = TRUE), rows = 1, cols = 1,
+                 gridExpand = TRUE, stack = TRUE)
+      }
+      
+      addStyle(wb = wb, sheet = "Frekvencne tabele",
+               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 4:9,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$neutez == TRUE), cols = 2:10,
+               style = createStyle(numFmt = "0"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 11:12,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$utez == TRUE), cols = 11:19,
+               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 13:18,
                gridExpand = TRUE, stack = TRUE)
+      
+      
+      setColWidths(wb = wb, sheet = "Frekvencne tabele", cols = 1, widths = 60)
     }
-    
-    if(any(unlist(opozorilo_numerus))) {
-      writeData(wb = wb, sheet = "Frekvencne tabele",
-                x = "Opozorilo: Število enot v celici je premajhno za zanesljivo oceno p-vrednosti", startCol = 1, startRow = 1)
-      
-      addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(fgFill = "#FF5D5D", wrapText = TRUE), rows = 1, cols = 1,
-               gridExpand = TRUE, stack = TRUE)
-    }
-    
-    addStyle(wb = wb, sheet = "Frekvencne tabele",
-             style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 4:9,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Frekvencne tabele",
-             style = createStyle(numFmt = "0"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 11:12,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Frekvencne tabele",
-             style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 13:18,
-             gridExpand = TRUE, stack = TRUE)
-    
-    
-    setColWidths(wb = wb, sheet = "Frekvencne tabele", cols = 1, widths = 60)
-    
   }
   
   if(warning_counter == FALSE){
