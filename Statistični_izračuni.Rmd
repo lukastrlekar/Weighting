@@ -93,7 +93,7 @@ Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1-1} + \f
 \end{equation}
 ki je ob izpolnjenih pogojih (dovolj velik vzorec) porazdeljena približno po standardni normalni ($z$) porazdelitvi. Ta izraz vrne identično vrednost kot enačba (1).
 
-Formalno gledano ta testna statistika ni porazdeljena kot $t$ porazdelitev (ocenimo le en parameter, ne dva), vendar bomo pri poročanju p vrednosti in IZ uporabili $t$ porazdelitev, ker bomo tako bolj konzervativni in tako upamo, da bo napaka prve vrste res $\leq \alpha$ (predvsem pri manjših vzorcih, ko ima $t$ porazdelitev širše repe kot normalna in bo dala višje p vrednosti in širše IZ).
+Formalno gledano ta testna statistika ni porazdeljena kot $t$ porazdelitev (ocenimo le en parameter, ne dva), vendar bomo pri poročanju p vrednosti $t$ porazdelitev, ker bomo tako bolj konzervativni in tako upamo, da bo napaka prve vrste res $\leq \alpha$ (predvsem pri manjših vzorcih, ko ima $t$ porazdelitev širše repe kot normalna in bo dala višje p vrednosti in širše IZ).
 
 ## Uteženi podatki
 
@@ -296,23 +296,5 @@ weighted.se.mean3(baza1[[stevilske_spremenljivke[3]]], utezi1)
 weighted.se.mean2(baza1[[stevilske_spremenljivke[3]]], utezi1) # ISTO !!!
 weighted.se.mean4(baza1[[stevilske_spremenljivke[3]]], utezi1)
 
-sum(is.na(baza1[[stevilske_spremenljivke[3]]]))
-########################################
-w <- weights
-y <- w
-x <- data$spremenljivka_Y
-u <- data$spremenljivka_Y*w
-muu <- mean(u)
-muw <- mean(w)
-mu1 <- weighted.mean(x,w)
-
-(muu^2/muw^2)*((var(u)/muu^2)-(2*(cov(u,w)/(muu*muw))) + var(w)/muw^2)
-
-(n * var(u, na.rm = TRUE) + mu1^2 * n * var(w, na.rm = TRUE) - 2 * mu1 * n * cov(u, w, use = "complete.obs"))/(sum(w, na.rm = TRUE)^2)
-
-(var(u, na.rm = TRUE) + mu1^2 * var(w, na.rm = TRUE) - 2 * mu1 * cov(u, w, use = "complete.obs"))/(sum(w, na.rm = TRUE))
-
-
-(1/n^2) * (cov(x^2, y^2) + (var(x) + mean(x)^2) * (var(y) + mean(y)^2) - (cov(x,y) + mean(x)*mean(y))^2)
 ```
 

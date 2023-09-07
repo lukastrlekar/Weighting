@@ -7,9 +7,8 @@ library(openxlsx)
 # TODO
 # pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
 # implementiraj še preverjanje če je t vrednost NA za številske, da se prav prešteje 
-# preveri, da če je spr konstanta vrne wtd_t_test NA
-# pri tabelah 2x2 je prop test (p(1-p) varianca ne kot naša popravljena) enako hi-kvadrat testu in se poroča lahko le v nei vrstici p vrednost 
 # popravek p vrednosti pri nominalnih (Holmov?)
+# daj popravi če ni nič tabel za nominalne da deluje
 
 # pomožne funkcije
 
@@ -137,8 +136,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     non_st_spr <- union(setdiff(imena_st_1, imena_st_2), setdiff(imena_st_2, imena_st_1))
     
     if(length(imena_st_1) != length(imena_st_2)){
-      warning(paste("Imena podanih številskih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_st_spr, collapse = ", ")))
-      
       writeData(wb = wb, sheet = "Opozorila", xy = c(1,1),
                 x = paste("Imena podanih številskih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_st_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
       
@@ -156,16 +153,49 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels", exact = TRUE))
     levels2 <- lapply(stevilske_spremenljivke, function(x) attr(baza2_na[[x]], "labels", exact = TRUE))
     
-    indeksi <- sapply(seq_along(stevilske_spremenljivke), function(i) all(names(levels1[[i]]) == names(levels2[[i]])))
+    indeksi <- vapply(seq_along(stevilske_spremenljivke), function(i) all(levels1[[i]] == levels2[[i]]), FUN.VALUE = logical(1))
     
     if(!all(indeksi)){
-      warning(paste("Kategorije se pri številski/h spremenljivki/ah", paste(stevilske_spremenljivke[!indeksi == TRUE], collapse = ", "), "ne ujemajo. Te spremenljivke niso bile odstranjene iz analiz, vendar svetujemo previdnost pri analizi."))
-      
       writeData(wb = wb, sheet = "Opozorila", xy = c(1,2),
-                x = paste("Kategorije se pri številski/h spremenljivki/ah", paste(stevilske_spremenljivke[!indeksi == TRUE], collapse = ", "), "ne ujemajo. Te spremenljivke niso bile odstranjene iz analiz, vendar svetujemo previdnost pri analizi."))
+                x = paste("Kategorije se pri številski/h spremenljivki/ah", paste(stevilske_spremenljivke[!indeksi], collapse = ", "), "ne ujemajo. Te spremenljivke niso bile odstranjene iz analiz, vendar svetujemo previdnost pri analizi."))
       
       warning_counter <- TRUE
     }
+    
+    # preverimo, da so spremenljivke res številske in neštevilske odstranimo (tu se odstranijo tudi spremenljivke z vsemi NA)
+    numeric_variables <- vapply(stevilske_spremenljivke, function(x){
+      t1 <- is.numeric(baza1_na[[x]]) | is.integer(baza1_na[[x]])
+      t2 <- is.numeric(baza2_na[[x]]) | is.integer(baza2_na[[x]])
+      all(t1, t2)
+    }, FUN.VALUE = logical(1), USE.NAMES = FALSE)
+    
+    if(!all(numeric_variables)){
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,3),
+                x = paste("Spremenljivke", paste(stevilske_spremenljivke[!numeric_variables], collapse = ", "), "so bile odstranjene iz analiz, saj vsebujejo neštevilske vrednosti oziroma so bile v SPSS definirane kot neštevilske v eni ali obeh bazah."))
+      
+      warning_counter <- TRUE
+      
+      stevilske_spremenljivke <- stevilske_spremenljivke[numeric_variables]
+    }
+    
+    # preverimo in odstranimo spremenljivke z ničelno varianco (konstante)
+    indeksi_variances <- vapply(stevilske_spremenljivke, function(x){
+      v1 <- 0 == var(baza1_na[[x]], na.rm = TRUE)
+      v2 <- 0 == var(baza2_na[[x]], na.rm = TRUE)
+      any(v1, v2)
+    }, FUN.VALUE = logical(1), USE.NAMES = FALSE)
+    
+    if(any(indeksi_variances)){
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,4),
+                x = paste("Številske spremenljivke", paste(stevilske_spremenljivke[indeksi_variances], collapse = ", "), "so bile odstranjene, saj so konstante (imajo ničelno varianco) v eni ali obeh bazah."))
+      
+      warning_counter <- TRUE
+      
+      stevilske_spremenljivke <- stevilske_spremenljivke[!indeksi_variances]
+    }
+    
+    baza1_na <- baza1_na[,stevilske_spremenljivke, drop = FALSE]
+    baza2_na <- baza2_na[,stevilske_spremenljivke, drop = FALSE]
     
     # tabela
     tabela_st <- data.frame("Spremenljivka" = stevilske_spremenljivke,
@@ -177,276 +207,268 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                                 ifelse(is.null(labela1), labela2, labela1)
                                                 },
                                               FUN.VALUE = character(1)))
-    
-    # vrne min od tiste baze, kjer je manjša vrednost minimum
-    tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
-                               sapply(baza2_na, min, na.rm = TRUE))
-    
-    # vrne max od tiste baze, kjer je višja vrednost maksimum
-    tabela_st[["Max"]] <- pmax(sapply(baza1_na, max, na.rm = TRUE),
-                               sapply(baza2_na, max, na.rm = TRUE))
-    
-    ## Neutežene statistike ----------------------------------------------------
-    
-    # N neutežen baza 1
-    tabela_st[[paste0("N - ", ime_baza1)]] <- colSums(!is.na(baza1_na))
-    
-    # N neutežen baza 2
-    tabela_st[[paste0("N - ", ime_baza2)]] <- colSums(!is.na(baza2_na))
-    
-    # Neutežen Welchev t-test
-    # var 0 ne bo delovalo!
-    # statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-    #   test <- t.test(x = baza1_na[[x]], y = baza2_na[[x]],
-    #                  paired = FALSE, var.equal = FALSE)
-    #   
-    #   c("povp1" = test$estimate[["mean of x"]],
-    #     "povp2" = test$estimate[["mean of y"]],
-    #     "t"     = test$statistic[[1]],
-    #     "p"     = test$p.value)
-    # })
-    
-    statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]]))
-    
-    # Neuteženo povprečje baza 1
-    tabela_st[[paste0("Povprečje - ", ime_baza1)]] <- sapply(statistike, function(x) x[["povp1"]])
-    
-    # Neuteženo povprečje baza 2
-    tabela_st[[paste0("Povprečje - ", ime_baza2)]] <- sapply(statistike, function(x) x[["povp2"]])
-    
-    # Absolutna razlika neuteženih povprečji
-    tabela_st[["Razlika v povprečjih - absolutna"]] <- sapply(statistike, function(x) x[["diff"]])
-    
-    # Relativna razlika neuteženih povprečji
-    tabela_st[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st[["Razlika v povprečjih - absolutna"]]/tabela_st[[paste0("Povprečje - ", ime_baza1)]])*100
-    
-    # T-vrednost in signifikanca
-    tabela_st[["t"]] <- sapply(statistike, function(x) x[["t"]])
-    
-    tabela_st[["p"]] <- sapply(statistike, function(x) x[["p"]])
-    
-    tabela_st[["Signifikanca"]] <- weights::starmaker(tabela_st[["p"]])
-    
-    ## Utežene statistike ------------------------------------------------------
-    
-    # Utežen Welchev t-test
-    # utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-    #   test <- weights::wtd.t.test(x = baza1_na[[x]], y = baza2_na[[x]],
-    #                               weight = utezi1, weighty = utezi2, samedata = FALSE)
-    #   
-    #   c("povp1" = test$additional[["Mean.x"]],
-    #     "povp2" = test$additional[["Mean.y"]],
-    #     "t"     = test$coefficients[["t.value"]],
-    #     "p"     = test$coefficients[["p.value"]])
-    # })
-    
-    utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-      wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], weights_x = utezi1, weights_y = utezi2)
-    })
-    
-    tabela_st_u <- data.frame(row.names = seq_along(utezene_statistike))
-    
-    # N utežen baza 1
-    # tabela_st_u[[paste0("N - ", ime_baza1)]] <- sapply(stevilske_spremenljivke, function(x) sum(utezi1[!is.na(baza1_na[[x]])]))
-    
-    # N utežen baza 2
-    # tabela_st_u[[paste0("N - ", ime_baza2)]] <- sapply(stevilske_spremenljivke, function(x) sum(utezi2[!is.na(baza2_na[[x]])]))
-    
-    # Uteženo povprečje baza 1
-    tabela_st_u[[paste0("Povprečje - ", ime_baza1)]] <- sapply(utezene_statistike, function(x) x[["povp1"]])
-    
-    # Uteženo povprečje baza 2
-    tabela_st_u[[paste0("Povprečje - ", ime_baza2)]] <- sapply(utezene_statistike, function(x) x[["povp2"]])
-    
-    # Absolutna razlika uteženih povprečji
-    tabela_st_u[["Razlika v povprečjih - absolutna"]] <- sapply(utezene_statistike, function(x) x[["diff"]])
-    
-    # Relativna razlika uteženih povprečji
-    tabela_st_u[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st_u[["Razlika v povprečjih - absolutna"]]/tabela_st_u[[paste0("Povprečje - ", ime_baza1)]])*100
-    
-    # T-vrednost in signifikanca
-    tabela_st_u[["t"]] <- sapply(utezene_statistike, function(x) x[["t"]])
-    
-    tabela_st_u[["p"]] <- sapply(utezene_statistike, function(x) x[["p"]])
-    
-    tabela_st_u[["Signifikanca"]] <- weights::starmaker(tabela_st_u[["p"]])
-    
-    ## Izvoz excel -------------------------------------------------------------
-    
-    # povzetek za številske spr.
-    merge_tabela_st <- cbind(tabela_st, tabela_st_u)
-    frekvence_rel_razlike_neutezene <- count_rel_diff(vec = merge_tabela_st[[10]], p_vec = merge_tabela_st[[12]]) # to spremeni, da je na tabela_st in tabela_st_u
-    frekvence_rel_razlike_utezene <- count_rel_diff(vec = merge_tabela_st[[17]], p_vec = merge_tabela_st[[19]])
-    
-    writeData(wb = wb,
-              sheet = "Povzetek",
-              
-              x = data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
-                             # neutežene statistike
-                             "f" = frekvence_rel_razlike_neutezene$sums,
-                             "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
-                             "Kumul f" = frekvence_rel_razlike_neutezene$cumsums,
-                             "Kumul %" = frekvence_rel_razlike_neutezene$cumsums/sum(frekvence_rel_razlike_neutezene$sums),
-                             "f" = frekvence_rel_razlike_neutezene$p_sums,
-                             "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
-                             "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
-                             "Kumul f" = frekvence_rel_razlike_neutezene$p_cumsums,
-                             "Kumul %" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
-                             
-                             # utežene statistike
-                             "f" = frekvence_rel_razlike_utezene$sums,
-                             "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
-                             "Kumul f" = frekvence_rel_razlike_utezene$cumsums,
-                             "Kumul %" = frekvence_rel_razlike_utezene$cumsums/sum(frekvence_rel_razlike_utezene$sums),
-                             "f" = frekvence_rel_razlike_utezene$p_sums,
-                             "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
-                             "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
-                             "Kumul f" = frekvence_rel_razlike_utezene$p_cumsums,
-                             "Kumul %" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
-                             check.names = FALSE),
-              
-              borders = "all", startRow = 4, 
-              headerStyle = createStyle(textDecoration = "bold",
-                                        border = c("top", "bottom", "left", "right"),
-                                        halign = "center", valign = "center", wrapText = TRUE), keepNA = FALSE)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Številske spremenljivke", startCol = 2, startRow = 1)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 1)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Neutežene statistike", startCol = 2, startRow = 2)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:10, rows = 2)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Utežene statistike", startCol = 11, startRow = 2)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 11:19, rows = 2)
-    
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Spremenljivke", startCol = 2, startRow = 3)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 2:5, rows = 3)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Spremenljivke", startCol = 11, startRow = 3)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 11:14, rows = 3)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Od tega statistično značilne spremenljivke (p < 0.05)",
-              startCol = 6, startRow = 3)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 6:10, rows = 3)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = "Od tega statistično značilne spremenljivke (p < 0.05)",
-              startCol = 15, startRow = 3)
-    
-    mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 3)
-    
-    writeData(wb = wb, sheet = "Povzetek",
-              x = cbind(c(paste("Št. vseh spremenljivk:", sum(frekvence_rel_razlike_neutezene$sums)),
-                          paste("Št. statistično značilnih spremenljivk (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene$p_sums)),
-                          paste("Št. statistično značilnih spremenljivk (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene$p_sums)))),
-              startCol = 1, startRow = 10, rowNames = FALSE, colNames = FALSE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                 fontSize = 12),
-             rows = 1:2, cols = 1:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                border = c("top", "bottom", "left", "right")),
-             rows = 3, cols = 1:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(numFmt = "0.0%"),
-             rows = 5:8, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(fgFill = "#DAEEF3"), rows = 3:8, cols = 2:10,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Povzetek",
-             style = createStyle(fgFill = "#FDE9D9"), rows = 3:8, cols = 11:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    setColWidths(wb = wb, sheet = "Povzetek", cols = 1:19,
-                 widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 8), 2)))
-    
-    setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 44))
-    
-    
-    # statistike
-    addWorksheet(wb = wb, sheetName = "Opisne statistike", gridLines = FALSE)
-    
-    writeData(wb = wb,
-              sheet = "Opisne statistike",
-              x = merge_tabela_st,
-              borders = "all", startRow = 2,
-              headerStyle = createStyle(textDecoration = "bold",
-                                        wrapText = TRUE,
-                                        border = c("top", "bottom", "left", "right"),
-                                        halign = "center", valign = "center"))
-    
-    writeData(wb = wb, sheet = "Opisne statistike",
-              x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 1))
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(fontSize = 9),
-             rows = 1, cols = 1)
-    
-    writeData(wb = wb, sheet = "Opisne statistike",
-              x = "Neutežene statistike", xy = c(7, 1))
-    
-    mergeCells(wb = wb, sheet = "Opisne statistike", cols = 7:13, rows = 1)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                 fontSize = 12),
-             rows = 1, cols = 7)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 7:12,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(fgFill = "#DAEEF3"), rows = 2:(nrow(tabela_st)+2), cols = 7:13,
-             gridExpand = TRUE, stack = TRUE)
-    
-    writeData(wb = wb, sheet = "Opisne statistike",
-              x = "Utežene statistike", xy = c(14, 1))
-    
-    mergeCells(wb = wb, sheet = "Opisne statistike", cols = 14:20, rows = 1)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(textDecoration = "bold",
-                                 halign = "center", valign = "center",
-                                 fontSize = 12),
-             rows = 1, cols = 14)
-    
-    # addStyle(wb = wb, sheet = "Opisne statistike",
-    #          style = createStyle(numFmt = "0"), rows = 3:(nrow(tabela_st)+2), cols = 14:15,
-    #          gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 14:19,
-             gridExpand = TRUE, stack = TRUE)
-    
-    addStyle(wb = wb, sheet = "Opisne statistike",
-             style = createStyle(fgFill = "#FDE9D9"), rows = 2:(nrow(tabela_st)+2), cols = 14:20,
-             gridExpand = TRUE, stack = TRUE)
+    if(nrow(tabela_st) > 0){
+      
+      # vrne min od tiste baze, kjer je manjša vrednost minimum
+      tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
+                                 sapply(baza2_na, min, na.rm = TRUE))
+      
+      # vrne max od tiste baze, kjer je višja vrednost maksimum
+      tabela_st[["Max"]] <- pmax(sapply(baza1_na, max, na.rm = TRUE),
+                                 sapply(baza2_na, max, na.rm = TRUE))
+      
+      ## Neutežene statistike ----------------------------------------------------
+      
+      # N neutežen baza 1
+      tabela_st[[paste0("N - ", ime_baza1)]] <- colSums(!is.na(baza1_na))
+      
+      # N neutežen baza 2
+      tabela_st[[paste0("N - ", ime_baza2)]] <- colSums(!is.na(baza2_na))
+      
+      # Neutežen Welchev t-test
+      # var 0 ne bo delovalo!
+      # statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+      #   test <- t.test(x = baza1_na[[x]], y = baza2_na[[x]],
+      #                  paired = FALSE, var.equal = FALSE)
+      # 
+      #   c("povp1" = test$estimate[["mean of x"]],
+      #     "povp2" = test$estimate[["mean of y"]],
+      #     "t"     = test$statistic[[1]],
+      #     "p"     = test$p.value)
+      # })
+      
+      statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]]))
+      
+      # Neuteženo povprečje baza 1
+      tabela_st[[paste0("Povprečje - ", ime_baza1)]] <- sapply(statistike, function(x) x[["povp1"]])
+      
+      # Neuteženo povprečje baza 2
+      tabela_st[[paste0("Povprečje - ", ime_baza2)]] <- sapply(statistike, function(x) x[["povp2"]])
+      
+      # Absolutna razlika neuteženih povprečji
+      tabela_st[["Razlika v povprečjih - absolutna"]] <- sapply(statistike, function(x) x[["diff"]])
+      
+      # Relativna razlika neuteženih povprečji
+      tabela_st[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st[["Razlika v povprečjih - absolutna"]]/tabela_st[[paste0("Povprečje - ", ime_baza1)]])*100
+      
+      # T-vrednost in signifikanca
+      tabela_st[["t"]] <- sapply(statistike, function(x) x[["t"]])
+      
+      tabela_st[["p"]] <- sapply(statistike, function(x) x[["p"]])
+      
+      tabela_st[["Signifikanca"]] <- weights::starmaker(tabela_st[["p"]])
+      
+      ## Utežene statistike ------------------------------------------------------
+      
+      # Utežen Welchev t-test
+      # utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+      #   test <- weights::wtd.t.test(x = baza1_na[[x]], y = baza2_na[[x]],
+      #                               weight = utezi1, weighty = utezi2, samedata = FALSE)
+      #   
+      #   c("povp1" = test$additional[["Mean.x"]],
+      #     "povp2" = test$additional[["Mean.y"]],
+      #     "t"     = test$coefficients[["t.value"]],
+      #     "p"     = test$coefficients[["p.value"]])
+      # })
+      
+      utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], weights_x = utezi1, weights_y = utezi2)
+      })
+      
+      tabela_st_u <- data.frame(row.names = seq_along(utezene_statistike))
+      
+      # Uteženo povprečje baza 1
+      tabela_st_u[[paste0("Povprečje - ", ime_baza1)]] <- sapply(utezene_statistike, function(x) x[["povp1"]])
+      
+      # Uteženo povprečje baza 2
+      tabela_st_u[[paste0("Povprečje - ", ime_baza2)]] <- sapply(utezene_statistike, function(x) x[["povp2"]])
+      
+      # Absolutna razlika uteženih povprečji
+      tabela_st_u[["Razlika v povprečjih - absolutna"]] <- sapply(utezene_statistike, function(x) x[["diff"]])
+      
+      # Relativna razlika uteženih povprečji
+      tabela_st_u[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st_u[["Razlika v povprečjih - absolutna"]]/tabela_st_u[[paste0("Povprečje - ", ime_baza1)]])*100
+      
+      # T-vrednost in signifikanca
+      tabela_st_u[["t"]] <- sapply(utezene_statistike, function(x) x[["t"]])
+      
+      tabela_st_u[["p"]] <- sapply(utezene_statistike, function(x) x[["p"]])
+      
+      tabela_st_u[["Signifikanca"]] <- weights::starmaker(tabela_st_u[["p"]])
+      
+      ## Izvoz excel -------------------------------------------------------------
+      
+      # povzetek za številske spr.
+      merge_tabela_st <- cbind(tabela_st, tabela_st_u)
+      frekvence_rel_razlike_neutezene <- count_rel_diff(vec = merge_tabela_st[[10]], p_vec = merge_tabela_st[[12]])
+      frekvence_rel_razlike_utezene <- count_rel_diff(vec = merge_tabela_st[[17]], p_vec = merge_tabela_st[[19]])
+      
+      writeData(wb = wb,
+                sheet = "Povzetek",
+                
+                x = data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+                               # neutežene statistike
+                               "f" = frekvence_rel_razlike_neutezene$sums,
+                               "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
+                               "Kumul f" = frekvence_rel_razlike_neutezene$cumsums,
+                               "Kumul %" = frekvence_rel_razlike_neutezene$cumsums/sum(frekvence_rel_razlike_neutezene$sums),
+                               "f" = frekvence_rel_razlike_neutezene$p_sums,
+                               "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
+                               "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
+                               "Kumul f" = frekvence_rel_razlike_neutezene$p_cumsums,
+                               "Kumul %" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
+                               
+                               # utežene statistike
+                               "f" = frekvence_rel_razlike_utezene$sums,
+                               "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
+                               "Kumul f" = frekvence_rel_razlike_utezene$cumsums,
+                               "Kumul %" = frekvence_rel_razlike_utezene$cumsums/sum(frekvence_rel_razlike_utezene$sums),
+                               "f" = frekvence_rel_razlike_utezene$p_sums,
+                               "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
+                               "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
+                               "Kumul f" = frekvence_rel_razlike_utezene$p_cumsums,
+                               "Kumul %" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
+                               check.names = FALSE),
+                
+                borders = "all", startRow = 4, 
+                headerStyle = createStyle(textDecoration = "bold",
+                                          border = c("top", "bottom", "left", "right"),
+                                          halign = "center", valign = "center", wrapText = TRUE), keepNA = FALSE)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Številske spremenljivke", startCol = 2, startRow = 1)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 1)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Neutežene statistike", startCol = 2, startRow = 2)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:10, rows = 2)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Utežene statistike", startCol = 11, startRow = 2)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 11:19, rows = 2)
+      
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Spremenljivke", startCol = 2, startRow = 3)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:5, rows = 3)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Spremenljivke", startCol = 11, startRow = 3)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 11:14, rows = 3)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Od tega statistično značilne spremenljivke (p < 0.05)",
+                startCol = 6, startRow = 3)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 6:10, rows = 3)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = "Od tega statistično značilne spremenljivke (p < 0.05)",
+                startCol = 15, startRow = 3)
+      
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 3)
+      
+      writeData(wb = wb, sheet = "Povzetek",
+                x = cbind(c(paste("Št. vseh spremenljivk:", sum(frekvence_rel_razlike_neutezene$sums)),
+                            paste("Št. statistično značilnih spremenljivk (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene$p_sums)),
+                            paste("Št. statistično značilnih spremenljivk (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene$p_sums)))),
+                startCol = 1, startRow = 10, rowNames = FALSE, colNames = FALSE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   fontSize = 12),
+               rows = 1:2, cols = 1:19,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   border = c("top", "bottom", "left", "right")),
+               rows = 3, cols = 1:19,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(numFmt = "0.0%"),
+               rows = 5:8, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(fgFill = "#DAEEF3"), rows = 3:8, cols = 2:10,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(fgFill = "#FDE9D9"), rows = 3:8, cols = 11:19,
+               gridExpand = TRUE, stack = TRUE)
+      
+      setColWidths(wb = wb, sheet = "Povzetek", cols = 1:19,
+                   widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 8), 2)))
+      
+      setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 44))
+      
+      
+      # statistike
+      addWorksheet(wb = wb, sheetName = "Opisne statistike", gridLines = FALSE)
+      
+      writeData(wb = wb,
+                sheet = "Opisne statistike",
+                x = merge_tabela_st,
+                borders = "all", startRow = 2,
+                headerStyle = createStyle(textDecoration = "bold",
+                                          wrapText = TRUE,
+                                          border = c("top", "bottom", "left", "right"),
+                                          halign = "center", valign = "center"))
+      
+      writeData(wb = wb, sheet = "Opisne statistike",
+                x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 1))
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(fontSize = 9),
+               rows = 1, cols = 1)
+      
+      writeData(wb = wb, sheet = "Opisne statistike",
+                x = "Neutežene statistike", xy = c(7, 1))
+      
+      mergeCells(wb = wb, sheet = "Opisne statistike", cols = 7:13, rows = 1)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   fontSize = 12),
+               rows = 1, cols = 7)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 7:12,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(fgFill = "#DAEEF3"), rows = 2:(nrow(tabela_st)+2), cols = 7:13,
+               gridExpand = TRUE, stack = TRUE)
+      
+      writeData(wb = wb, sheet = "Opisne statistike",
+                x = "Utežene statistike", xy = c(14, 1))
+      
+      mergeCells(wb = wb, sheet = "Opisne statistike", cols = 14:20, rows = 1)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   fontSize = 12),
+               rows = 1, cols = 14)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 14:19,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(fgFill = "#FDE9D9"), rows = 2:(nrow(tabela_st)+2), cols = 14:20,
+               gridExpand = TRUE, stack = TRUE)
+    }
   }
   
   if(!is.null(nominalne_spremenljivke)){
@@ -458,9 +480,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     non_spr <- union(setdiff(imena_nom_1, imena_nom_2), setdiff(imena_nom_2, imena_nom_1))
     
     if(length(non_spr) != 0){
-      warning(paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
-      
-      writeData(wb = wb, sheet = "Opozorila", xy = c(1,4),
+      writeData(wb = wb, sheet = "Opozorila", xy = c(1,5),
                 x = paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
       
       warning_counter <- TRUE
@@ -476,19 +496,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       data2 <- as_factor(user_na_to_na(baza2[[spr]]))
       
       if(!all(levels(data1) == levels(data2))){
-        warning(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
-        
         return(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
         
       } else if(all(is.na(data1)) | all(is.na(data2))) {
-        warning(paste("Spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
-        
-        return(paste("Spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Nominalna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
       } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
-        warning(paste("Spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
-
-        return(paste("Spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Nominalna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
 
       } else {
         
@@ -601,14 +615,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     for(i in seq_along(factor_tables)){
       if(is.character(factor_tables[[i]])){
-        writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 4 + vsota[i],
+        writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 5 + vsota[i],
                   x = factor_tables[[i]])
         
         warning_counter <- TRUE
       }
     }
     
-    factor_tables <- factor_tables[!sapply(factor_tables, is.character)]
+    factor_tables <- factor_tables[!vapply(factor_tables, is.character, FUN.VALUE = logical(1))]
     
     # skupno število kategorij
     st_kategorij <- sum(sapply(factor_tables, function(x) sum(x[[1]] != "Skupaj")))
@@ -741,6 +755,18 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                           paste("Št. statistično značilnih kategorij (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene_nom$p_sums)),
                           paste("Št. statistično značilnih kategorij (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene_nom$p_sums)))),
               startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
+    
+    writeData(wb = wb, sheet = "Povzetek",
+              x = cbind(c(paste("Št. vseh nominalnih spremenljivk:", length(factor_tables)),
+                          paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - neuteženi podatki:",
+                                sum(vapply(seq_along(temp_factor_tables), function(i){
+                                  any(temp_factor_tables[[i]][[9]][!opozorilo_numerus[[i]][["p_neutez"]]] < 0.05)
+                                }, FUN.VALUE = logical(1)))),
+                          paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - uteženi podatki:", 
+                                sum(vapply(seq_along(temp_factor_tables), function(i){
+                                  any(temp_factor_tables[[i]][[18]][!opozorilo_numerus[[i]][["p_utez"]]] < 0.05)
+                                }, FUN.VALUE = logical(1)))))),
+              startCol = 1, startRow = 28, rowNames = FALSE, colNames = FALSE)
     
     addStyle(wb = wb, sheet = "Povzetek",
              style = createStyle(textDecoration = "bold",
@@ -908,7 +934,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
 #                              "TRUST_NATIONAL_HEALTH",
 #                              "TRUST_SCIENCE",
 #                              "TRUST_POSSK19")
-
+# 
 # nominalne_spremenljivke = stevilske_spremenljivke
 
 
