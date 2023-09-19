@@ -3,10 +3,13 @@ library(haven)
 library(labelled)
 library(weights)
 library(openxlsx)
+library(stringr)
 
 # TODO
+# če povprečej ni enako 1 smao opozorilo da se bo reskaliralo uteži
 # pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
 # popravek p vrednosti pri nominalnih (Holmov?)
+# dodati možnost survey da računa SE z raking design
 
 # pomožne funkcije
 
@@ -35,7 +38,7 @@ weighted_table = function(x, weights) {
 }
 
 # funkcija za izračun testne statistike (Welchev t-test)
-wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL){
+wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE){
   n1 <- sum(!is.na(x))
   n2 <- sum(!is.na(y))
   
@@ -56,25 +59,20 @@ wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL){
   mu1 <- weighted.mean(x = x, w = weights_x, na.rm = TRUE)
   mu2 <- weighted.mean(x = y, w = weights_y, na.rm = TRUE)
   
-  if(is.null(weights_x) && is.null(weights_y)) {
-    se1 <- var(x, na.rm = TRUE)/n1
-    se2 <- var(y, na.rm = TRUE)/n2
+  # SE^2
+  se1_2 <- (n1/((n1 - 1) * sum(weights_x)^2)) * sum(weights_x^2 * (x - mu1)^2)
+  se2_2 <- (n2/((n2 - 1) * sum(weights_y)^2)) * sum(weights_y^2 * (y - mu2)^2)
+  
+  t <- (mu2 - mu1)/(sqrt(se1_2 + se2_2))
+  
+  if(prop == TRUE){
+    p <- pnorm(q = abs(t), lower.tail = FALSE) * 2
   } else {
-    u1 <- x * weights_x
-    se1 <- (var(u1, na.rm = TRUE) + mu1^2 * var(weights_x, na.rm = TRUE) - 2 * mu1 * cov(u1, weights_x))/(sum(weights_x, na.rm = TRUE))
-
-    u2 <- y * weights_y
-    se2 <- (var(u2, na.rm = TRUE) + mu2^2 * var(weights_y, na.rm = TRUE) - 2 * mu2 * cov(u2, weights_y))/(sum(weights_y, na.rm = TRUE))
-    
-    # se1 <- (var(x, na.rm = TRUE)/n1) * (1 + var(weights_x))
-    # se2 <- (var(y, na.rm = TRUE)/n2) * (1 + var(weights_y))
+    df <- (se1_2 + se2_2)^2/(se1_2^2/(n1 - 1) + se2_2^2/(n2 - 1))
+    p <- pt(q = abs(t), df = df, lower.tail = FALSE) * 2
   }
-  
-  t <- (mu2 - mu1)/(sqrt(se1 + se2))
-  df <- (se1 + se2)^2/(se1^2/(n1 - 1) + se2^2/(n2 - 1))
-  p <- pt(q = abs(t), df = df, lower.tail = FALSE) * 2
-  
-  c(povp1 = mu1, povp2 = mu2, diff = mu2 - mu1, t = t, p = p, df = df)
+
+  c(povp1 = mu1, povp2 = mu2, diff = mu2 - mu1, t = t, p = p)
 }
 
 
@@ -102,11 +100,19 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   }
   
   if(!isTRUE(all.equal(mean(utezi1, na.rm = TRUE), 1))){
-    stop("Povprečje uteži v 1. bazi ni enako 1.")
+    warning("Povprečje uteži v 1. bazi ni enako 1. Uteži bodo reskalirane, da bo povprečje enako 1.")
   }
   
   if(!isTRUE(all.equal(mean(utezi2, na.rm = TRUE), 1))){
-    stop("Povprečje uteži v 2. bazi ni enako 1.")
+    warning("Povprečje uteži v 2. bazi ni enako 1. Uteži bodo reskalirane, da bo povprečje enako 1.")
+  }
+  
+  if(anyNA(utezi1)){
+    stop("Uteži v 1. bazi vsebujejo manjkajoče vrednosti.")
+  }
+  
+  if(anyNA(utezi2)){
+    stop("Uteži v 2. bazi vsebujejo manjkajoče vrednosti.")
   }
   
   if(!is.null(stevilske_spremenljivke) && !is.character(stevilske_spremenljivke)){
@@ -209,13 +215,35 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                               FUN.VALUE = character(1)))
     if(nrow(tabela_st) > 0){
       
-      # vrne min od tiste baze, kjer je manjša vrednost minimum
-      tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
-                                 sapply(baza2_na, min, na.rm = TRUE))
+      # tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
+      #                            sapply(baza2_na, min, na.rm = TRUE))
+
+      tabela_st[["Min"]] <- sapply(stevilske_spremenljivke, function(x){
+        labele <- attr(x = baza1[[x]], which = "labels", exact = TRUE)
+        if(is.null(labele)) labele <- attr(x = baza2[[x]], which = "labels", exact = TRUE) else labele
+        if(!is.null(labele)){
+          string <- stringr::str_squish(paste(unname(labele[1]), "-", names(labele[1])))
+          paste(stringr::str_unique(stringr::str_split_1(string, " ")), collapse = " ")
+        } else {
+          # vrne min od tiste baze, kjer je manjša vrednost minimum
+          pmin(min(baza1_na[[x]], na.rm = TRUE), min(baza2_na[[x]], na.rm = TRUE))
+        }
+      }, USE.NAMES = FALSE)
       
-      # vrne max od tiste baze, kjer je višja vrednost maksimum
-      tabela_st[["Max"]] <- pmax(sapply(baza1_na, max, na.rm = TRUE),
-                                 sapply(baza2_na, max, na.rm = TRUE))
+      # tabela_st[["Maks"]] <- pmax(sapply(baza1_na, max, na.rm = TRUE),
+      #                            sapply(baza2_na, max, na.rm = TRUE))
+      
+      tabela_st[["Maks"]] <- sapply(stevilske_spremenljivke, function(x){
+        labele <- attr(x = baza1[[x]], which = "labels", exact = TRUE)
+        if(is.null(labele)) labele <- attr(x = baza2[[x]], which = "labels", exact = TRUE) else labele
+        if(!is.null(labele)){
+          string <- stringr::str_squish(paste(unname(labele[length(labele)]), "-", names(labele[length(labele)])))
+          paste(stringr::str_unique(stringr::str_split_1(string, " ")), collapse = " ")
+        } else {
+          # vrne max od tiste baze, kjer je višja vrednost maksimum
+          pmax(max(baza1_na[[x]], na.rm = TRUE), max(baza2_na[[x]], na.rm = TRUE))
+        }
+      }, USE.NAMES = FALSE)
       
       ## Neutežene statistike ----------------------------------------------------
       
@@ -226,16 +254,17 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       tabela_st[[paste0("N - ", ime_baza2)]] <- colSums(!is.na(baza2_na))
       
       # Neutežen Welchev t-test
-      # var 0 ne bo delovalo!
-      # statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-      #   test <- t.test(x = baza1_na[[x]], y = baza2_na[[x]],
-      #                  paired = FALSE, var.equal = FALSE)
+      # statistike2 <- lapply(stevilske_spremenljivke, FUN = function(x){
+      # test <- t.test(x = baza1_na[[x]], y = baza2_na[[x]],
+      #                paired = FALSE, var.equal = FALSE)
       # 
       #   c("povp1" = test$estimate[["mean of x"]],
       #     "povp2" = test$estimate[["mean of y"]],
-      #     "t"     = test$statistic[[1]],
+      #     "diff"  = test$estimate[["mean of y"]] - test$estimate[["mean of x"]],
+      #     "t"     = -test$statistic[[1]],
       #     "p"     = test$p.value)
       # })
+      # all.equal(statistike, statistike2)
       
       statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]]))
       
@@ -261,10 +290,11 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       ## Utežene statistike ------------------------------------------------------
       
       # Utežen Welchev t-test
-      # utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+      # utezene_statistike2 <- lapply(stevilske_spremenljivke, FUN = function(x){
+      #    # napačen izračun SE
       #   test <- weights::wtd.t.test(x = baza1_na[[x]], y = baza2_na[[x]],
       #                               weight = utezi1, weighty = utezi2, samedata = FALSE)
-      #   
+      # 
       #   c("povp1" = test$additional[["Mean.x"]],
       #     "povp2" = test$additional[["Mean.y"]],
       #     "t"     = test$coefficients[["t.value"]],
@@ -309,24 +339,24 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                            "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
                            "Kumul f" = frekvence_rel_razlike_neutezene$cumsums,
                            "Kumul %" = frekvence_rel_razlike_neutezene$cumsums/sum(frekvence_rel_razlike_neutezene$sums),
-                           "f" = frekvence_rel_razlike_neutezene$p_sums,
+                           "f*" = frekvence_rel_razlike_neutezene$p_sums,
                            "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
                            "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
-                           "Kumul f" = frekvence_rel_razlike_neutezene$p_cumsums,
-                           "Kumul %" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
+                           "Kumul f*" = frekvence_rel_razlike_neutezene$p_cumsums,
+                           "Kumul %*" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
                            # utežene statistike
                            "f" = frekvence_rel_razlike_utezene$sums,
                            "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
                            "Kumul f" = frekvence_rel_razlike_utezene$cumsums,
                            "Kumul %" = frekvence_rel_razlike_utezene$cumsums/sum(frekvence_rel_razlike_utezene$sums),
-                           "f" = frekvence_rel_razlike_utezene$p_sums,
+                           "f*" = frekvence_rel_razlike_utezene$p_sums,
                            "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
                            "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
-                           "Kumul f" = frekvence_rel_razlike_utezene$p_cumsums,
-                           "Kumul %" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
+                           "Kumul f*" = frekvence_rel_razlike_utezene$p_cumsums,
+                           "Kumul %*" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
                            check.names = FALSE)
       
-      tbl_st[is.na(tbl_st)] <- NA
+      tbl_st[is.na(tbl_st)] <- 0
       
       writeData(wb = wb,
                 sheet = "Povzetek",
@@ -337,7 +367,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                           halign = "center", valign = "center", wrapText = TRUE))
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = "Številske spremenljivke", startCol = 2, startRow = 1)
+                x = "Številske (intervalne, razmernostne) spremenljivke", startCol = 2, startRow = 1)
       
       mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 1)
       
@@ -375,9 +405,9 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       mergeCells(wb = wb, sheet = "Povzetek", cols = 15:19, rows = 3)
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = cbind(c(paste("Št. vseh spremenljivk:", sum(frekvence_rel_razlike_neutezene$sums)),
-                            paste("Št. statistično značilnih spremenljivk (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene$p_sums)),
-                            paste("Št. statistično značilnih spremenljivk (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene$p_sums)))),
+                x = cbind(c(paste("Št. vseh številskih spremenljivk:", sum(frekvence_rel_razlike_neutezene$sums)),
+                            paste("Št. statistično značilnih številskih spremenljivk (p < 0.05) - neuteženi podatki:", sum(frekvence_rel_razlike_neutezene$p_sums)),
+                            paste("Št. statistično značilnih številskih spremenljivk (p < 0.05) - uteženi podatki:", sum(frekvence_rel_razlike_utezene$p_sums)))),
                 startCol = 1, startRow = 10, rowNames = FALSE, colNames = FALSE)
       
       addStyle(wb = wb, sheet = "Povzetek",
@@ -395,8 +425,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Povzetek",
-               style = createStyle(numFmt = "0.0%"),
+               style = createStyle(numFmt = "0%"),
                rows = 5:8, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(halign = "center"),
+               rows = 5:8, cols = 1:19,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Povzetek",
@@ -408,7 +443,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       setColWidths(wb = wb, sheet = "Povzetek", cols = 1:19,
-                   widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 8), 2)))
+                   widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 9), 2)))
       
       setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 44))
       
@@ -425,6 +460,11 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                           border = c("top", "bottom", "left", "right"),
                                           halign = "center", valign = "center"))
       
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(halign = "center"),
+               rows = 3:(nrow(tabela_st)+2), cols = 5:ncol(merge_tabela_st),
+               gridExpand = TRUE, stack = TRUE)
+      
       writeData(wb = wb, sheet = "Opisne statistike",
                 x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001", xy = c(1, 1))
       
@@ -437,20 +477,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       
       mergeCells(wb = wb, sheet = "Opisne statistike", cols = 7:13, rows = 1)
       
-      addStyle(wb = wb, sheet = "Opisne statistike",
-               style = createStyle(textDecoration = "bold",
-                                   halign = "center", valign = "center",
-                                   fontSize = 12),
-               rows = 1, cols = 7)
-      
-      addStyle(wb = wb, sheet = "Opisne statistike",
-               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 7:12,
-               gridExpand = TRUE, stack = TRUE)
-      
-      addStyle(wb = wb, sheet = "Opisne statistike",
-               style = createStyle(fgFill = "#DAEEF3"), rows = 2:(nrow(tabela_st)+2), cols = 7:13,
-               gridExpand = TRUE, stack = TRUE)
-      
       writeData(wb = wb, sheet = "Opisne statistike",
                 x = "Utežene statistike", xy = c(14, 1))
       
@@ -460,14 +486,24 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                style = createStyle(textDecoration = "bold",
                                    halign = "center", valign = "center",
                                    fontSize = 12),
-               rows = 1, cols = 14)
+               rows = 1, cols = c(7,14),
+               gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Opisne statistike",
-               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = 14:19,
+               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = c(7:12, 14:19),
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(fgFill = "#DAEEF3"), rows = 2:(nrow(tabela_st)+2), cols = 7:13,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Opisne statistike",
                style = createStyle(fgFill = "#FDE9D9"), rows = 2:(nrow(tabela_st)+2), cols = 14:20,
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Opisne statistike",
+               style = createStyle(numFmt = "0"),
+               rows = 3:(nrow(tabela_st)+2), cols = c(10, 17),
                gridExpand = TRUE, stack = TRUE)
     }
   }
@@ -497,52 +533,59 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       data2 <- as_factor(user_na_to_na(baza2[[spr]]))
       
       if(!all(levels(data1) == levels(data2))){
-        return(paste("Kategorije v bazah se pri nominalni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorije v bazah se pri kategorialni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
         
       } else if(all(is.na(data1)) | all(is.na(data2))) {
-        return(paste("Nominalna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorialna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
       } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
-        return(paste("Nominalna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
 
       } else {
-        
         ## Neutežene statistike ----------------------------------------------------
-        
         labela1 <- attr(baza1[[spr]], "label", exact = TRUE)
         labela2 <- attr(baza2[[spr]], "label", exact = TRUE)
-        labela2 <- ifelse(is.null(labela2), "", labela2)
+        labela2 <- ifelse(is.null(labela2), "", paste0(" - ", labela2))
         
         tabela_nom <- as.data.frame(table(data1))
-        names(tabela_nom) <- c(paste0(spr, " - ", ifelse(is.null(labela1), labela2, labela1)),
+        names(tabela_nom) <- c(paste0(spr, ifelse(is.null(labela1), labela2, paste0(" - ", labela1))),
                                paste0("N - ", ime_baza1))
         tabela_nom[,1] <- as.character(tabela_nom[,1])
         
         tabela_nom[[paste0("N - ", ime_baza2)]] <- as.data.frame(table(data2))[,2]
         
-        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100 # popravi da bodo deleži iz statistik
+        dummies1 <- weights::dummify(data1, keep.na = TRUE)
+        dummies2 <- weights::dummify(data2, keep.na = TRUE)
         
-        tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
+        # statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i) wtd_t_test(x = dummies1[,i], y = dummies2[,i]))
+        
+        # z-test za neodvisna deleža
+        n1 <- sum(!is.na(data1))
+        n2 <- sum(!is.na(data2))
+        
+        statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i){
+          test <- prop.test(x = c(sum(dummies1[,i], na.rm = TRUE), sum(dummies2[,i], na.rm = TRUE)),
+                            n = c(n1, n2), correct = FALSE)
+          
+          c("delez1" = test$estimate[[1]],
+            "delez2" = test$estimate[[2]],
+            "z" = unname(sqrt(test$statistic)),
+            "p" = test$p.value)
+        })
+        
+        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- sapply(statistika_nom, function(x) x[["delez1"]])*100 
+        
+        tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- sapply(statistika_nom, function(x) x[["delez2"]])*100
+        
+        # tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100 
+        # 
+        # tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
         
         tabela_nom[["Razlika v deležih - absolutna"]] <- tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom[[paste0("Delež (%) - ", ime_baza1)]]
         
         tabela_nom[["Razlika v deležih - relativna (%)"]] <- (tabela_nom[["Razlika v deležih - absolutna"]]/tabela_nom[[paste0("Delež (%) - ", ime_baza1)]])*100
         
-        dummies1 <- weights::dummify(data1, keep.na = TRUE)
-        dummies2 <- weights::dummify(data2, keep.na = TRUE)
-        
-        # t-test
-        # statistika_nom <- lapply(1:nrow(tabela_nom), FUN = function(i){ # popravi 1:nrow
-        #   test <- t.test(x = dummies1[,i], y = dummies2[,i],
-        #                  paired = FALSE, var.equal = FALSE)
-        #   
-        #   c("t" = test$statistic[[1]],
-        #     "p" = test$p.value)
-        # })
-        
-        statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i) wtd_t_test(x = dummies1[,i], y = dummies2[,i]))
-        
-        tabela_nom[["t"]] <- sapply(statistika_nom, function(x) x[["t"]])
+        tabela_nom[["z"]] <- sapply(statistika_nom, function(x) x[["z"]])
         
         tabela_nom[["p"]] <- sapply(statistika_nom, function(x) x[["p"]])
         
@@ -577,20 +620,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         # Relativna razlika uteženih deležev
         tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]])*100
         
-        # Utežen t-test
-        # utezena_statistika_nom <- lapply(1:nrow(tabela_nom_u), FUN = function(i){
-        #   test <- weights::wtd.t.test(x = dummies1[,i], y = dummies2[,i],
-        #                               weight = utezi1, weighty = utezi2, samedata = FALSE)
-        # 
-        #   c("t" = test$coefficients[["t.value"]],
-        #     "p" = test$coefficients[["p.value"]])
-        # })
-        
+        # Utežen z-test za neodvisna deleža
         utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
-          wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2)
+          wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE)
         })
         
-        tabela_nom_u[["t"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
+        tabela_nom_u[["z"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
         
         tabela_nom_u[["p"]] <- sapply(utezena_statistika_nom, function(x) x[["p"]])
         
@@ -634,6 +669,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       factor_tables <- lapply(factor_tables, function(x) {
         x[is.finite(x[,7]) == FALSE,7] <- x[is.finite(x[,7]) == FALSE,6]
         x[is.finite(x[,16]) == FALSE,16] <- x[is.finite(x[,16]) == FALSE,15]
+        x[is.na(x)] <- NA
         x
       })
       
@@ -690,24 +726,24 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                             "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
                             "Kumul f" = frekvence_rel_razlike_neutezene_nom$cumsums,
                             "Kumul %" = frekvence_rel_razlike_neutezene_nom$cumsums/sum(frekvence_rel_razlike_neutezene_nom$sums),
-                            "f" = frekvence_rel_razlike_neutezene_nom$p_sums,
+                            "f*" = frekvence_rel_razlike_neutezene_nom$p_sums,
                             "% od vseh kategorij" = frekvence_rel_razlike_neutezene_nom$p_sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
                             "% od relativne razlike" = frekvence_rel_razlike_neutezene_nom$p_sums/frekvence_rel_razlike_neutezene_nom$sums,
-                            "Kumul f" = frekvence_rel_razlike_neutezene_nom$p_cumsums,
-                            "Kumul %" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$p_sums),
+                            "Kumul f*" = frekvence_rel_razlike_neutezene_nom$p_cumsums,
+                            "Kumul %*" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$p_sums),
                             # utežene statistike
                             "f" = frekvence_rel_razlike_utezene_nom$sums,
                             "%" = frekvence_rel_razlike_utezene_nom$sums/sum(frekvence_rel_razlike_utezene_nom$sums),
                             "Kumul f" = frekvence_rel_razlike_utezene_nom$cumsums,
                             "Kumul %" = frekvence_rel_razlike_utezene_nom$cumsums/sum(frekvence_rel_razlike_utezene_nom$sums),
-                            "f" = frekvence_rel_razlike_utezene_nom$p_sums,
+                            "f*" = frekvence_rel_razlike_utezene_nom$p_sums,
                             "% od vseh kategorij" = frekvence_rel_razlike_utezene_nom$p_sums/sum(frekvence_rel_razlike_utezene_nom$sums),
                             "% od relativne razlike" = frekvence_rel_razlike_utezene_nom$p_sums/frekvence_rel_razlike_utezene_nom$sums,
-                            "Kumul f" = frekvence_rel_razlike_utezene_nom$p_cumsums,
-                            "Kumul %" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$p_sums),
+                            "Kumul f*" = frekvence_rel_razlike_utezene_nom$p_cumsums,
+                            "Kumul %*" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$p_sums),
                             check.names = FALSE)
       
-      tbl_nom[is.na(tbl_nom)] <- NA
+      tbl_nom[is.na(tbl_nom)] <- 0
       
       writeData(wb = wb,
                 sheet = "Povzetek",
@@ -719,7 +755,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                           halign = "center", valign = "center"))
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = "Nominalne spremenljivke", startCol = 2, startRow = 15)
+                x = "Opisne (nominalne, ordinalne) spremenljivke", startCol = 2, startRow = 15)
       
       mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 15)
       
@@ -760,12 +796,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                 startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = cbind(c(paste("Št. vseh nominalnih spremenljivk:", length(factor_tables)),
-                            paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - neuteženi podatki:",
+                x = cbind(c(paste("Št. vseh opisnih spremenljivk:", length(factor_tables)),
+                            paste("Št. statistično značilnih opisnih spremenljivk (p < 0.05) - neuteženi podatki:",
                                   sum(vapply(seq_along(temp_factor_tables), function(i){
                                     any(temp_factor_tables[[i]][[9]][!opozorilo_numerus[[i]][["p_neutez"]]] < 0.05)
                                   }, FUN.VALUE = logical(1)))),
-                            paste("Št. statistično značilnih nominalnih spremenljivk (p < 0.05) - uteženi podatki:", 
+                            paste("Št. statistično značilnih opisnih spremenljivk (p < 0.05) - uteženi podatki:", 
                                   sum(vapply(seq_along(temp_factor_tables), function(i){
                                     any(temp_factor_tables[[i]][[18]][!opozorilo_numerus[[i]][["p_utez"]]] < 0.05)
                                   }, FUN.VALUE = logical(1)))))),
@@ -786,8 +822,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Povzetek",
-               style = createStyle(numFmt = "0.0%"),
+               style = createStyle(numFmt = "0%"),
                rows = 19:22, cols = c(3, 5, 7, 8, 10, 12, 14, 16, 17, 19),
+               gridExpand = TRUE, stack = TRUE)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(halign = "center"),
+               rows = 19:22, cols = 1:19,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Povzetek",
@@ -798,18 +839,29 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                style = createStyle(fgFill = "#FDE9D9"), rows = 17:22, cols = 11:19,
                gridExpand = TRUE, stack = TRUE)
       
-      setRowHeights(wb = wb, sheet = "Povzetek", rows = 15:18, heights = c(20, 20, 25, 44))
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 2:10, rows = 23)
+      mergeCells(wb = wb, sheet = "Povzetek", cols = 11:19, rows = 23)
+      
+      addStyle(wb = wb, sheet = "Povzetek",
+               style = createStyle(wrapText = TRUE),
+               rows = 23, cols = c(2, 11),
+               gridExpand = TRUE, stack = TRUE)
+      
+      setColWidths(wb = wb, sheet = "Povzetek", cols = 1:19,
+                   widths = c(16, rep(c(5, 6, 8, 8, 5, 21, 21, 8, 9), 2)))
+      
+      setRowHeights(wb = wb, sheet = "Povzetek", rows = c(15:18, 23), heights = c(20, 20, 25, 44, 28))
       
       # opozorilo če n <= 5
       if(any(p_numerus_neutezene_kategorije)) {
         writeData(wb = wb, sheet = "Povzetek",
-                  x = paste("Opomba: Kategorije (število:", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
+                  x = paste0("Opomba: Nekatere izmed kategorij (št. takih kategorij: ", sum(p_numerus_neutezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
                   startCol = 2, startRow = 23)
       }
       
       if(any(p_numerus_utezene_kategorije)) {
         writeData(wb = wb, sheet = "Povzetek",
-                  x = paste("Opomba: Kategorije (število:", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
+                  x = paste0("Opomba: Nekatere izmed kategorij (št. takih kategorij: ", sum(p_numerus_utezene_kategorije),") so bile statistično značilne, vendar zaradi premajhnega št. enot niso bile upoštevane v povzetku."),
                   startCol = 11, startRow = 23)
       }
       
@@ -826,7 +878,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                rows = 2, cols = 1)
       
       # starting row = number of rows of previous table
-      start_rows <- c(0, cumsum(3 + sapply(factor_tables, nrow)[-length(factor_tables)])) + 3
+      start_rows <- c(0, cumsum(2 + sapply(factor_tables, nrow)[-length(factor_tables)])) + 3
       
       for(i in seq_along(factor_tables)){
         
@@ -839,37 +891,20 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                             border = c("top", "bottom", "left", "right"),
                                             halign = "center", valign = "center"))
         
-        writeData(wb = wb, sheet = "Frekvencne tabele",
-                  x = "Neutežene statistike", startCol = 2, startRow = start_rows[i]-1)
-        
-        mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 2:10, rows = start_rows[i]-1)
-        
-        addStyle(wb = wb, sheet = "Frekvencne tabele",
-                 style = createStyle(textDecoration = "bold",
-                                     halign = "center", valign = "center",
-                                     fontSize = 12),
-                 rows = start_rows[i]-1, cols = c(2, 11),
-                 gridExpand = TRUE, stack = TRUE)
-        
         addStyle(wb = wb, sheet = "Frekvencne tabele",
                  style = createStyle(fgFill = "#DAEEF3"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 2:10,
                  gridExpand = TRUE, stack = TRUE)
-        
-        writeData(wb = wb, sheet = "Frekvencne tabele",
-                  x = "Utežene statistike", startCol = 11, startRow = start_rows[i]-1)
-        
-        mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 11:19, rows = start_rows[i]-1)
         
         addStyle(wb = wb, sheet = "Frekvencne tabele",
                  style = createStyle(fgFill = "#FDE9D9"), rows = start_rows[i]:(start_rows[i]+nrow(factor_tables[[i]])), cols = 11:19,
                  gridExpand = TRUE, stack = TRUE)
         
         addStyle(wb = wb, sheet = "Frekvencne tabele",
-                 style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$neutez == TRUE), cols = 2:10,
+                 style = createStyle(fgFill = "#D9D9D9"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$neutez == TRUE), cols = 2:10,
                  gridExpand = TRUE, stack = TRUE)
         
         addStyle(wb = wb, sheet = "Frekvencne tabele",
-                 style = createStyle(fgFill = "#FF5D5D"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$utez == TRUE), cols = 11:19,
+                 style = createStyle(fgFill = "#D9D9D9"), rows = start_rows[i] + which(opozorilo_numerus[[i]]$utez == TRUE), cols = 11:19,
                  gridExpand = TRUE, stack = TRUE)
       }
       
@@ -878,22 +913,38 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                   x = "Opozorilo: Število enot v celici je premajhno za zanesljivo oceno p-vrednosti", startCol = 1, startRow = 1)
         
         addStyle(wb = wb, sheet = "Frekvencne tabele",
-                 style = createStyle(fgFill = "#FF5D5D", wrapText = TRUE), rows = 1, cols = 1,
+                 style = createStyle(fgFill = "#D9D9D9", wrapText = TRUE), rows = 1, cols = 1,
                  gridExpand = TRUE, stack = TRUE)
       }
       
+      writeData(wb = wb, sheet = "Frekvencne tabele",
+                x = "Neutežene statistike", startCol = 2, startRow = 2)
+      
+      mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 2:10, rows = 2)
+      
+      writeData(wb = wb, sheet = "Frekvencne tabele",
+                x = "Utežene statistike", startCol = 11, startRow = 2)
+      
+      mergeCells(wb = wb, sheet = "Frekvencne tabele", cols = 11:19, rows = 2)
+      
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 4:9,
+               style = createStyle(textDecoration = "bold",
+                                   halign = "center", valign = "center",
+                                   fontSize = 12),
+               rows = 2, cols = c(2, 11),
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(numFmt = "0"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 11:12,
+               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = c(8,9,17,18),
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 13:18,
+               style = createStyle(numFmt = "0"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = c(4:7, 11:16),
                gridExpand = TRUE, stack = TRUE)
       
+      addStyle(wb = wb, sheet = "Frekvencne tabele",
+               style = createStyle(halign = "center"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 2:19,
+               gridExpand = TRUE, stack = TRUE)
       
       setColWidths(wb = wb, sheet = "Frekvencne tabele", cols = 1, widths = 60)
     }
@@ -910,13 +961,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
 
 
 
-
-# baza1 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/2. CDI, PANDA, 21. val, koncano, uteži.sav",
-#                              user_na = TRUE)
+# baza1 <- user_na_to_na(haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/2. CDI, PANDA, 21. val, koncano, uteži.sav",
+#                                        user_na = TRUE))
 # utezi1 <- baza1$weights
 # 
-# baza2 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/3. Valicon, PANDA - 21. val, koncano, uteži.sav",
-#                              user_na = TRUE)
+# baza2 <- user_na_to_na(haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/3. Valicon, PANDA - 21. val, koncano, uteži.sav",
+#                              user_na = TRUE))
 # utezi2 <- baza2$weights
 # 
 # stevilske_spremenljivke <- c("VACC_EFFECT_v2",

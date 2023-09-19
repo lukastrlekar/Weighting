@@ -10,7 +10,7 @@ ui <- fluidPage(
     # Application title
     titlePanel("Primerjava neuteženih in uteženih povprečji in deležev iz dveh SPSS baz"),
     
-    tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf",
+    tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf", target = "_blank",
            "Priloga - statistični izračuni >>>"),
     
     h3("Nalaganje podatkov"),
@@ -28,7 +28,7 @@ ui <- fluidPage(
       column(4,
              pickerInput(
                inputId = "stevilske_spr",
-               label = HTML("Izberi številske spremenljivke: </br>
+               label = HTML("Izberi številske spremenljivke (intervalna, razmernostna merska lestvica): </br>
                     <small>(prikazane so le spremenljivke iz 1. baze)</small>"),
                choices = NULL,
                multiple = TRUE,
@@ -39,7 +39,7 @@ ui <- fluidPage(
       column(4,
              pickerInput(
                inputId = "nominalne_spr",
-               label = HTML("Izberi nominalne spremenljivke: </br>
+               label = HTML("Izberi opisne spremenljivke (nominalna, ordinalna merska lestvica): </br>
                     <small>(prikazane so le spremenljivke iz 1. baze)</small>"),
                choices = NULL,
                multiple = TRUE,
@@ -96,15 +96,15 @@ server <- function(input, output, session) {
   podatki1 <- reactive({
     req(input$upload_baza1)
     
-    haven::read_spss(file = input$upload_baza1$datapath,
-                     user_na = TRUE)
+    labelled::user_na_to_na(haven::read_spss(file = input$upload_baza1$datapath,
+                                             user_na = TRUE))
   })
   
   podatki2 <- reactive({
     req(input$upload_baza2)
     
-    haven::read_spss(file = input$upload_baza2$datapath,
-                     user_na = TRUE)
+    labelled::user_na_to_na(haven::read_spss(file = input$upload_baza2$datapath,
+                                             user_na = TRUE))
   })
   
   observe({
