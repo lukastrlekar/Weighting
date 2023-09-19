@@ -4,7 +4,7 @@ Pred izvedbo analiz koda preveri, da so imena izbranih spremenljivk enaka v obeh
 
 ## Shiny aplikacija
 
-Lokalno se požene aplikacijo z naslednjo kodo (za delovanje so potrebni paketi `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`):
+Lokalno se požene aplikacijo z naslednjo kodo (za delovanje so potrebni paketi `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`, `stringr`):
 
 ```
 shiny::runGitHub(repo = "Weighting", username = "lukastrlekar", ref = "main")
@@ -35,12 +35,12 @@ Funkcija vrne Excel datoteko z imenom `"Statistike.xlsx"`, ki se shrani v mapo a
 source("https://raw.githubusercontent.com/lukastrlekar/Weighting/main/Skripta_primerjava_povprecji.R")
 
 # naložimo obe SPSS datoteki
-# argument user_na = TRUE !
+# argument user_na = TRUE
 
-podatki1 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/2. CDI, PANDA, 21. val, koncano, uteži.sav",
+podatki1 <- haven::read_spss(file = "baza1.sav",
                              user_na = TRUE)
 
-podatki2 <- haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/3. Valicon, PANDA - 21. val, končano, uteži.sav",
+podatki2 <- haven::read_spss(file = "baza2.sav",
                              user_na = TRUE)
 
 # izberemo številske spremenljivke
@@ -72,8 +72,8 @@ nominalne_spremenljivke <- c("FINANCE",
 # pokličemo funkcijo
 izvoz_excel_tabel(baza1 = podatki1,
                   baza2 = podatki2,
-                  ime_baza1 = "CDI PANDA",
-                  ime_baza2 = "Valicon PANDA",
+                  ime_baza1 = "baza 1",
+                  ime_baza2 = "baza 2",
                   utezi1 = podatki1$weights,
                   utezi2 = podatki2$weights,
                   stevilske_spremenljivke = stevilske_spremenljivke,
