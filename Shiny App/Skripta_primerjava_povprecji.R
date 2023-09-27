@@ -6,8 +6,7 @@ library(openxlsx)
 library(stringr)
 
 # TODO
-# če povprečej ni enako 1 smao opozorilo da se bo reskaliralo uteži
-# pri nominalnih tabelah daj iz funkcije wtd_t_test deleže in abs razlike
+# če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
 # popravek p vrednosti pri nominalnih (Holmov?)
 # dodati možnost survey da računa SE z raking design
 
@@ -41,30 +40,30 @@ weighted_table = function(x, weights) {
 wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE){
   n1 <- sum(!is.na(x))
   n2 <- sum(!is.na(y))
-  
+
   if(is.null(weights_x)) weights_x <- rep(1, length(x))
-  
+
   if(is.null(weights_y)) weights_y <- rep(1, length(y))
-  
+
   use_x <- !is.na(x)
   use_y <- !is.na(y)
-  
+
   x <- x[use_x]
   y <- y[use_y]
   weights_x <- weights_x[use_x]
   weights_y <- weights_y[use_y]
   weights_x <- weights_x/mean(weights_x, na.rm = TRUE)
   weights_y <- weights_y/mean(weights_y, na.rm = TRUE)
-  
+
   mu1 <- weighted.mean(x = x, w = weights_x, na.rm = TRUE)
   mu2 <- weighted.mean(x = y, w = weights_y, na.rm = TRUE)
-  
+
   # SE^2
   se1_2 <- (n1/((n1 - 1) * sum(weights_x)^2)) * sum(weights_x^2 * (x - mu1)^2)
   se2_2 <- (n2/((n2 - 1) * sum(weights_y)^2)) * sum(weights_y^2 * (y - mu2)^2)
-  
+
   t <- (mu2 - mu1)/(sqrt(se1_2 + se2_2))
-  
+
   if(prop == TRUE){
     p <- pnorm(q = abs(t), lower.tail = FALSE) * 2
   } else {
@@ -74,7 +73,6 @@ wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE){
 
   c(povp1 = mu1, povp2 = mu2, diff = mu2 - mu1, t = t, p = p)
 }
-
 
 # glavna funkcija za izvoz tabel v Excel
 izvoz_excel_tabel <- function(baza1 = NULL,
@@ -518,7 +516,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     if(length(non_spr) != 0){
       writeData(wb = wb, sheet = "Opozorila", xy = c(1,5),
-                x = paste("Imena podanih nominalnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
+                x = paste("Imena podanih opisnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
       
       warning_counter <- TRUE
     }
@@ -533,13 +531,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       data2 <- as_factor(user_na_to_na(baza2[[spr]]))
       
       if(!all(levels(data1) == levels(data2))){
-        return(paste("Kategorije v bazah se pri kategorialni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorije v bazah se pri opisni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
         
       } else if(all(is.na(data1)) | all(is.na(data2))) {
-        return(paste("Kategorialna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Opisna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
       } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
-        return(paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Opisna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
 
       } else {
         ## Neutežene statistike ----------------------------------------------------
@@ -577,10 +575,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- sapply(statistika_nom, function(x) x[["delez2"]])*100
         
-        # tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom[[paste0("N - ", ime_baza1)]]/sum(tabela_nom[[paste0("N - ", ime_baza1)]]))*100 
-        # 
-        # tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom[[paste0("N - ", ime_baza2)]]/sum(tabela_nom[[paste0("N - ", ime_baza2)]]))*100
-        
         tabela_nom[["Razlika v deležih - absolutna"]] <- tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom[[paste0("Delež (%) - ", ime_baza1)]]
         
         tabela_nom[["Razlika v deležih - relativna (%)"]] <- (tabela_nom[["Razlika v deležih - absolutna"]]/tabela_nom[[paste0("Delež (%) - ", ime_baza1)]])*100
@@ -608,22 +602,25 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         # Utežena frekvenca baza 2
         tabela_nom_u[[paste0("N - ", ime_baza2)]] <- weighted_table(data2, utezi2)
         
-        # Utežen delež baza 1
-        tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom_u[[paste0("N - ", ime_baza1)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza1)]]))*100
-        
-        # Utežen delež baza 2
-        tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom_u[[paste0("N - ", ime_baza2)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza2)]]))*100
-        
-        # Absolutna razlika uteženih deležev
-        tabela_nom_u[["Razlika v deležih - absolutna"]] <- tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]]
-        
-        # Relativna razlika uteženih deležev
-        tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]])*100
-        
         # Utežen z-test za neodvisna deleža
         utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
           wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE)
         })
+        
+        # Utežen delež baza 1
+        tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- sapply(utezena_statistika_nom, function(x) x[["povp1"]]) * 100
+        # tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom_u[[paste0("N - ", ime_baza1)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza1)]]))*100
+        
+        # Utežen delež baza 2
+        tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] <- sapply(utezena_statistika_nom, function(x) x[["povp2"]]) * 100
+        # tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] <- (tabela_nom_u[[paste0("N - ", ime_baza2)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza2)]]))*100
+        
+        # Absolutna razlika uteženih deležev
+        tabela_nom_u[["Razlika v deležih - absolutna"]] <- sapply(utezena_statistika_nom, function(x) x[["diff"]]) * 100
+        # tabela_nom_u[["Razlika v deležih - absolutna"]] <- tabela_nom_u[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]]
+        
+        # Relativna razlika uteženih deležev
+        tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]])*100
         
         tabela_nom_u[["z"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
         

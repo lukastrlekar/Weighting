@@ -6,8 +6,6 @@ source("Skripta_primerjava_povprecji.R")
 
 # Define UI 
 ui <- fluidPage(
-
-    # Application title
     titlePanel("Primerjava neuteženih in uteženih povprečji in deležev iz dveh SPSS baz"),
     
     tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf", target = "_blank",
@@ -20,6 +18,14 @@ ui <- fluidPage(
              fileInput("upload_baza1", label = "Naloži 1. SPSS bazo", accept = ".sav")),
       column(4,
              fileInput("upload_baza2", label = "Naloži 2. SPSS bazo", accept = ".sav"))),
+    hr(),
+    h3("Imena baz"),
+    br(),
+    fluidRow(
+      column(4,
+             textInput("ime1", label = "Ime 1. baze prikazano v Excel datoteki:", value = "baza 1")),
+      column(4,
+             textInput("ime2", label = "Ime 2. baze prikazano v Excel datoteki:", value = "baza 2"))),
     
     hr(),
     h3("Izbira spremenljivk"),
@@ -71,14 +77,6 @@ ui <- fluidPage(
                options = pickerOptions(actionsBox = TRUE,
                                        liveSearch = TRUE,
                                        maxOptions = 1)))),
-    hr(),
-    h3("Imena baz"),
-    br(),
-    fluidRow(
-      column(4,
-             textInput("ime1", label = "Ime 1. baze prikazano v Excel datoteki:", value = "baza 1")),
-      column(4,
-             textInput("ime2", label = "Ime 2. baze prikazano v Excel datoteki:", value = "baza 2"))),
     
     hr(),
     h3("Prenos datoteke"),
