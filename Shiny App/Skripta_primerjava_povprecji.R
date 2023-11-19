@@ -7,10 +7,12 @@ library(stringr)
 
 # TODO
 # če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
-# popravek p vrednosti pri nominalnih (Holmov?)
-# dodati možnost survey da računa SE z raking design
 
 # pomožne funkcije
+load_to_environment <- function(RData, env = new.env()) {
+  load(RData, env)
+  return(env[[names(env)[1]]])
+}
 
 # funkcija ki prešteje št. relativnih razlik glede na intervale in št. stat. značilnih spremenljivk
 count_rel_diff <- function(vec, p_vec) {
@@ -37,30 +39,36 @@ weighted_table = function(x, weights) {
 }
 
 # funkcija za izračun testne statistike (Welchev t-test)
-wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE){
-  n1 <- sum(!is.na(x))
-  n2 <- sum(!is.na(y))
+wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE, se_calculation, survey_design1, survey_design2){
 
   if(is.null(weights_x)) weights_x <- rep(1, length(x))
 
   if(is.null(weights_y)) weights_y <- rep(1, length(y))
-
-  use_x <- !is.na(x)
-  use_y <- !is.na(y)
-
-  x <- x[use_x]
-  y <- y[use_y]
-  weights_x <- weights_x[use_x]
-  weights_y <- weights_y[use_y]
-  weights_x <- weights_x/mean(weights_x, na.rm = TRUE)
-  weights_y <- weights_y/mean(weights_y, na.rm = TRUE)
-
+  
+  n1 <- sum(!is.na(x))
+  n2 <- sum(!is.na(y))
+  
   mu1 <- weighted.mean(x = x, w = weights_x, na.rm = TRUE)
   mu2 <- weighted.mean(x = y, w = weights_y, na.rm = TRUE)
-
-  # SE^2
-  se1_2 <- (n1/((n1 - 1) * sum(weights_x)^2)) * sum(weights_x^2 * (x - mu1)^2)
-  se2_2 <- (n2/((n2 - 1) * sum(weights_y)^2)) * sum(weights_y^2 * (y - mu2)^2)
+  
+  if(se_calculation == "taylor_se"){
+    use_x <- !is.na(x)
+    use_y <- !is.na(y)
+    
+    x <- x[use_x]
+    y <- y[use_y]
+    weights_x <- weights_x[use_x]
+    weights_y <- weights_y[use_y]
+    
+    # SE^2
+    se1_2 <- (n1/((n1 - 1) * sum(weights_x)^2)) * sum(weights_x^2 * (x - mu1)^2)
+    se2_2 <- (n2/((n2 - 1) * sum(weights_y)^2)) * sum(weights_y^2 * (y - mu2)^2)
+  }
+  
+  if(se_calculation == "survey_se"){
+    se1_2 <- SE(svymean(x = x, design = survey_design1, na.rm = TRUE))^2
+    se2_2 <- SE(svymean(x = y, design = survey_design2, na.rm = TRUE))^2
+  }
 
   t <- (mu2 - mu1)/(sqrt(se1_2 + se2_2))
 
@@ -83,7 +91,17 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                               utezi2 = NULL,
                               stevilske_spremenljivke = NULL,
                               nominalne_spremenljivke = NULL,
+                              se_calculation = c("taylor_se", "survey_se"),
+                              survey_design1 = NULL,
+                              survey_design2 = NULL,
                               file) {
+  
+  se_calculation <- match.arg(se_calculation)
+  
+  if(se_calculation == "survey_se"){
+    utezi1 <- weights(survey_design1)
+    utezi2 <- weights(survey_design2)
+  }
   
   if(!is.data.frame(baza1) || !is.data.frame(baza2)){
     stop("Baza mora biti SPSS podatkovni okvir.")
@@ -264,7 +282,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # })
       # all.equal(statistike, statistike2)
       
-      statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]]))
+      statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], se_calculation = "taylor_se"))
       
       # Neuteženo povprečje baza 1
       tabela_st[[paste0("Povprečje - ", ime_baza1)]] <- sapply(statistike, function(x) x[["povp1"]])
@@ -300,7 +318,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # })
       
       utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], weights_x = utezi1, weights_y = utezi2)
+        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], weights_x = utezi1, weights_y = utezi2,
+                   se_calculation = se_calculation, survey_design1 = survey_design1, survey_design2 = survey_design2)
       })
       
       tabela_st_u <- data.frame(row.names = seq_along(utezene_statistike))
@@ -604,7 +623,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         # Utežen z-test za neodvisna deleža
         utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
-          wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE)
+          wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE,
+                     se_calculation = se_calculation, survey_design1 = survey_design1, survey_design2 = survey_design2)
         })
         
         # Utežen delež baza 1

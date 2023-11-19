@@ -18,6 +18,10 @@ ui <- fluidPage(
              fileInput("upload_baza1", label = "Naloži 1. SPSS bazo", accept = ".sav")),
       column(4,
              fileInput("upload_baza2", label = "Naloži 2. SPSS bazo", accept = ".sav"))),
+    fluidRow(
+      column(8,
+             p("Opomba: relativna pristranskost se bo računala kot da je točkovna ocena v prvi bazi prava."),
+             p("Opomba: pred analizo se bo uteži reskaliralo, da bo povprečje 1 (ne vpliva na izračun standardnih napak, le na frekvence)."))),
     hr(),
     h3("Imena baz"),
     br(),
@@ -31,7 +35,7 @@ ui <- fluidPage(
     h3("Izbira spremenljivk"),
     br(),
     fluidRow(
-      column(4,
+      column(6,
              pickerInput(
                inputId = "stevilske_spr",
                label = HTML("Izberi številske spremenljivke (intervalna, razmernostna merska lestvica): </br>
@@ -42,7 +46,7 @@ ui <- fluidPage(
                options = pickerOptions(actionsBox = TRUE,
                                        liveSearch = TRUE)))),
     fluidRow(
-      column(4,
+      column(6,
              pickerInput(
                inputId = "nominalne_spr",
                label = HTML("Izberi opisne spremenljivke (nominalna, ordinalna merska lestvica): </br>
@@ -52,32 +56,49 @@ ui <- fluidPage(
                width = "100%",
                options = pickerOptions(actionsBox = TRUE,
                                        liveSearch = TRUE)))),
-    
     hr(),
-    h3("Izbira uteži"),
-    br(),
+    h3("Izračun standardne napake"),
     fluidRow(
-      column(4,
-             pickerInput(
-               inputId = "spr_utezi1",
-               label = "Izberi spremenljivko uteži iz 1. baze:",
-               choices = NULL,
-               multiple = TRUE,
-               width = "100%",
-               options = pickerOptions(actionsBox = TRUE,
-                                       liveSearch = TRUE,
-                                       maxOptions = 1))),
-      column(4,
-             pickerInput(
-               inputId = "spr_utezi2",
-               label = "Izberi spremenljivko uteži iz 2. baze:",
-               choices = NULL,
-               multiple = TRUE,
-               width = "100%",
-               options = pickerOptions(actionsBox = TRUE,
-                                       liveSearch = TRUE,
-                                       maxOptions = 1)))),
+      column(12,
+             radioButtons("se_calculation",
+                          label = "Izberi način izračuna standardne napake (SE):",
+                          choices = c("Aproksimativen izračun SE s Taylorjevo linearizacijo za razmernostno cenilko" = "taylor_se",
+                                      "Natančen izračun SE s paketom survey" = "survey_se"), width = "100%"))),
+    conditionalPanel(condition = 'input.se_calculation == "survey_se"',
+                     hr(),
+                     h3("Nalaganje svydesign objektov"),
+                     br(),
+                     fluidRow(
+                       column(4,
+                              fileInput("upload_svydesign_1", label = "Naloži svydesign R objekt za 1. bazo", accept = ".RData")),
+                       column(4,
+                              fileInput("upload_svydesign_2", label = "Naloži svydesign R objekt za 2. bazo", accept = ".RData")))),
     
+    conditionalPanel(condition = 'input.se_calculation == "taylor_se"',
+                     hr(),
+                     h3("Izbira uteži"),
+                     br(),
+                     fluidRow(
+                       column(4,
+                              pickerInput(
+                                inputId = "spr_utezi1",
+                                label = "Izberi spremenljivko uteži iz 1. baze:",
+                                choices = NULL,
+                                multiple = TRUE,
+                                width = "100%",
+                                options = pickerOptions(actionsBox = TRUE,
+                                                        liveSearch = TRUE,
+                                                        maxOptions = 1))),
+                       column(4,
+                              pickerInput(
+                                inputId = "spr_utezi2",
+                                label = "Izberi spremenljivko uteži iz 2. baze:",
+                                choices = NULL,
+                                multiple = TRUE,
+                                width = "100%",
+                                options = pickerOptions(actionsBox = TRUE,
+                                                        liveSearch = TRUE,
+                                                        maxOptions = 1))))),
     hr(),
     h3("Prenos datoteke"),
     br(),
@@ -139,25 +160,31 @@ server <- function(input, output, session) {
       #                         easyClose = TRUE,
       #                         footer = NULL))
       # }
-      # 
-      # if(!isTRUE(all.equal(mean(podatki2()[[input$spr_utezi2]], na.rm = TRUE), 1))){
-      #   showModal(modalDialog(HTML("Povprečje uteži v 2. bazi ni enako 1."),
-      #                         easyClose = TRUE,
-      #                         footer = NULL))
-      # }
+
       showModal(modalDialog(HTML("<h3><center>Prenašanje datoteke</center></h3>"),
                             shinycssloaders::withSpinner(uiOutput("loading"), type = 8),
                             footer = NULL))
       on.exit(removeModal())
       
+      if(input$se_calculation == "taylor_se"){
+        utezi1 <- podatki1()[[input$spr_utezi1]]
+        utezi2 <- podatki2()[[input$spr_utezi2]]
+      } else {
+        utezi1 <- NULL
+        utezi2 <- NULL
+      }
+      
       izvoz_excel_tabel(baza1 = podatki1(),
                         baza2 = podatki2(),
                         ime_baza1 = input$ime1,
                         ime_baza2 = input$ime2,
-                        utezi1 = podatki1()[[input$spr_utezi1]],
-                        utezi2 = podatki2()[[input$spr_utezi2]],
+                        utezi1 = utezi1,
+                        utezi2 = utezi2,
                         stevilske_spremenljivke = input$stevilske_spr,
                         nominalne_spremenljivke = input$nominalne_spr,
+                        se_calculation = input$se_calculation,
+                        survey_design1 = load_to_environment(input$upload_svydesign_1$datapath),
+                        survey_design2 = load_to_environment(input$upload_svydesign_2$datapath),
                         file = file)
     }
   )
