@@ -975,29 +975,3 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   # shranimo excel datoteko
   saveWorkbook(wb = wb, file = file, overwrite = TRUE)
 }
-
-
-
-# baza1 <- user_na_to_na(haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/2. CDI, PANDA, 21. val, koncano, uteži.sav",
-#                                        user_na = TRUE))
-# utezi1 <- baza1$weights
-# 
-# baza2 <- user_na_to_na(haven::read_spss(file = "C:/Users/strle/OneDrive/Dokumenti/Delo/Weighting/Test files/3. Valicon, PANDA - 21. val, koncano, uteži.sav",
-#                              user_na = TRUE))
-# utezi2 <- baza2$weights
-# 
-# stevilske_spremenljivke <- c("VACC_EFFECT_v2",
-#                              "VACC_NATURAL",
-#                              "VACC_OBLIGATION",
-#                              "TRUST_JOURNAL",
-#                              "TRUST_HOSPITALS",
-#                              "TRUST_NCDC",
-#                              "TRUST_POLITICIANS",
-#                              "TRUST_DOCTOR",
-#                              "TRUST_NATIONAL_HEALTH",
-#                              "TRUST_SCIENCE",
-#                              "TRUST_POSSK19")
-# 
-# nominalne_spremenljivke = stevilske_spremenljivke
-
-
