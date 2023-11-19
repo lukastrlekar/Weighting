@@ -1,16 +1,19 @@
 ---
-title: "Priloga - Statistični izračuni"
+title: "Priloga - Statistični izračuni za primerjave povprečji in deležev med dvema vzorcema"
 author: "Luka Štrlekar"
 output: pdf_document
 editor_options: 
   chunk_output_type: console
+fontsize: 12pt
+header-includes:
+  - \usepackage{setspace}\spacing{1.15}
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-# Izračuni za številske (intervalne) spremnljivke
+# Izračuni za številske (intervalne) spremenljivke
 
 ## Neuteženi podatki
 
@@ -26,42 +29,40 @@ ki je približno porazdeljena po $t$ porazdelitvi z $\nu$ stopinjami prostosti (
 $$
 \nu \approx \dfrac{\left(\hat{\sigma}_{1}^{2} / n_{1}+\hat{\sigma}_{2}^{2} / n_{2}\right)^{2}}{\left(\hat{\sigma}_{1}^{2} / n_{1}\right)^{2} /\left(n_{1}-1\right)+\left(\hat{\sigma}_{2}^{2} / n_{2}\right)^{2} /\left(n_{2}-1\right)}
 $$
-Pogosto prakso, ki je npr. implementirana v SPSS, da se najprej preveri enakost varianc (npr. z Levenovim testom) in nato uporabi ustrezen t-test (z enakimi ali neenakimi variancami), se odsvetuje.
+Pogosto prakso, ki je npr. implementirana v SPSS, da se najprej preveri enakost varianc (npr. z Levenovim testom) in nato uporabi ustrezen t-test (z enakimi ali neenakimi variancami), se odsvetuje (Zimmerman, 2010). Welchev t-test se lahko privzeto uporabi vsakič, saj je tudi moč tega testa podobna t-testu z enakimi variancami v primeru enakih populacijskih varianc in uravnoteženih vzorcev (Ruxton, 2006).
 
 ## Uteženi podatki
 
-Utežujemo s poststratifikacijskimi utežmi, uteži so normalizirane (povprečje uteži je 1 in vsota uteži je enaka velikosti vzorca $\sum^n_{i=1}w_i=n$). 
-
-Vzorčno uteženo aritmetično sredino lahko v splošnem zapišemo (Kalton & Vehovar, 2001, str. 93):
+Vzorčno uteženo aritmetično sredino lahko v splošnem zapišemo kot ($w_i$ so uteži) (Kalton & Vehovar, 2001, str. 93):
 
 \begin{equation}
-\hat{\mu}_w = \frac{\sum^n_{i=1} w_i x_i}{\sum^n_{i=1} w_i}
+\mu_w = \frac{\sum^n_{i=1} w_i x_i}{\sum^n_{i=1} w_i}
 \end{equation}
 
-Oglejmo si še oceno vzorčne variance. Ker ima utežena aritmetična sredina slučajni spremenljivki v števcu in v imenovalcu, moramo uporabiti izraz za varianco razmernostne cenilke. Če je koeficient variacije uteži manjši od 0.2, je približna cenilka variance za uteženo aritmetično sredino enaka (pri čemer je spremenljivka $u_i$ definirana kot $u_i = w_ix_i$ ter je $n$ velikost vzorca) (Kalton & Vehovar, 2001, str. 95):
+Oglejmo si še oceno vzorčne variance. Ker ima utežena aritmetična sredina slučajni spremenljivki v števcu in v imenovalcu, je variabilnost odvisna od variabilnosti slučajnih spremenljivk tako v števcu kot v imenovalcu, kot tudi od njihove korelacije. Ker ne obstaja natančna analitična oblika za izračun te variance, se za približno oceno uporabljajo različne metode, predvsem Taylorjeva linearizacija ali metode replikacij kot je bootstrap/jackknife (Kalton & Vehovar, 2001).
+
+Uporaba Taylorjeve linearizacije, kar imenujemo tudi metoda delta, poda naslednjo cenilko za vzorčno varianco utežene aritmetične sredine, pri čemer predpostavljamo, da so uteži fiksne (izhajajo iz neenakih verjetnosti izbora enote v vzorec) (Gatz & Smith, 1995; Lohr, 2019):
 
 \begin{equation}
-var(\hat{\mu}_w) \approx \frac{var(u) n + \hat{\mu}_w^2 var(w) n - 2 \hat{\mu}_w  cov(u,w) n}{(\sum^n_{i=1} w_i)^2}
+var(\mu_w) \approx \frac{n}{(n-1)(\sum{w_i} )^2}  \sum w_i^2(x_i - \mu_w)^2
 \end{equation}
 
-Ker so uteži normalizirane ($\sum^n_{i=1} w_i=n$), se enačba (3) poenostavi v:
+Zgornjo formulo lahko zapišemo tudi na spodnji način, kjer je bolj razvidno, da v izračun vstopa tudi kovarianca (Kalton & Vehovar, 2001, str. 95, $u_i = w_ix_i$):
 
 \begin{equation}
-var(\hat{\mu}_w) \approx \frac{var(u) + \hat{\mu}_w^2 var(w) - 2 \hat{\mu}_w  cov(u,w)}{n}
+var(\mu_w) \approx \frac{var(u) n + {\mu}_w^2 var(w) n - 2 {\mu}_w cov(u,w) n}{(\sum{w_i})^2}
 \end{equation}
 
 V praksi sicer prevladuje prepričanje, da je vpliv obravnavane korelacije majhen, saj običajno ni posebnih razlogov za izrazitejšo povezanost med utežmi in vrednostmi spremenljivk, pa tudi vpliv korelacije ni neposreden, ampak je precej kompleksen. Po drugi strani velja opozoriti, da je korelacija med utežmi in spremenljivko - na nivoju celotnega vzorca - predpogoj za nastanek in tudi za zmanjšanje pristranskosti neutežene ocene (Kalton & Vehovar, 2001, str. 111). 
+
+Velja pa poudariti, da smo predpostavljali, da so uteži fiksne in se pri ponavljajočem izbiranju vzorca ne spreminjajo, kar pa pri poststratifikacijskem uteževanju ne velja. Vseeno je ta ocena vzorčne variance varna (tj. konzervativna) (Lu in Gelman, 2003; Lumley, 2011).
 
 Podobno kot pri neuteženih podatkih ocenimo testno statistiko:
 
 $$
 T_w = \frac{\hat{\mu}_{w1} - \hat{\mu}_{w2}}{\sqrt{var(\hat{\mu}_{w1}) + var(\hat{\mu}_{w2})}} 
 $$
-ki je približno porazdeljena po $t$ porazdelitvi z $\nu_w$ stopinjami prostosti (df) izračunanimi po naslednji formuli:
 
-$$
-\nu_w \approx \frac{\left(var(\hat{\mu}_{w1}) + var(\hat{\mu}_{w2})\right)^2}{\left(var(\hat{\mu}_{w1})\right)^{2} /\left(n_{1}-1\right)+\left(var(\hat{\mu}_{w2})\right)^{2} /\left(n_{2}-1\right)}
-$$
 
 ```{r, eval=FALSE}
 d = data.frame(uc = c(2,5,6,8,3,7,6,3,5,2),
@@ -82,48 +83,39 @@ cor(d$u, d$utez)
 
 ## Neuteženi podatki
 
-Imamo nominalno spremenljivko s $k$ kategorijami. Delež je pravzaprav povprečje binomsko porazdeljene slučajne spremenljivke (lahko zavzame vrednosti 0 in 1, $\sim \frac{1}{n}Binom(n,p)$). V našem primeru taka spremenljivka zavzame vrednost 1, če je v $k$-ti kategoriji in 0, če ni (skupaj $n$ vrednosti). Ne želimo preverjati ničelne domneve, da so hkrati deleži vseh kategorij enaki ($H_0:p_1= p_2=\ ...\ = p_k$), temveč želimo preveriti ničelno domnevo, da je delež v $k$-ti kategoriji v prvem vzorcu (skupini) enak deležu v isti kategoriji v drugem vzorcu (skupini) ($H_0:p_{1}=p_{2}$).
+Imamo nominalno spremenljivko s $k$ kategorijami. Delež je pravzaprav povprečje binomsko porazdeljene slučajne spremenljivke (lahko zavzame vrednosti 0 in 1, $\sim \frac{1}{n}Binom(n,p)$). V našem primeru taka spremenljivka zavzame vrednost 1, če je v $k$-ti kategoriji in 0, če ni (skupaj $n$ vrednosti). Ne želimo preverjati ničelne domneve, da so hkrati deleži vseh kategorij enaki ($H_0:p_1= p_2=\ ...\ = p_k$), temveč želimo preveriti ničelno domnevo, da je delež v $k$-ti kategoriji v prvem vzorcu (skupini) enak deležu v isti kategoriji v drugem vzorcu ($H_0:p_{1}=p_{2}$).
 
-Ker sta vzorca neodvisna, velja $Var(p_{1}-p_{2})=\frac{p_1(1-p_1)}{n_1-1} + \frac{p_2(1-p_2)}{n_2-1}$. Uporabili smo nepristransko cenilko za elementarno varianco binomsko porazdeljene spremenljivke, ki je $Var = \frac{n}{n-1} p(1-p)$, iz tega potem izhaja, da je vzorčna varianca $Var(p)=\frac{np(1-p)/n-1}{n} = \frac{p(1-p)}{n-1}$. 
+Ocenimo običajno testno statistiko:
 
-Normalna porazdelitev začne precej dobro aproksimirati binomsko, ko velja pravilo čez palec $np>5$ in $n(1-p)>5$ (pri bolj ekstremnih deležih je potreben večji vzorec). Na vzorcu ocenimo testno statistiko:
-
-\begin{equation}
-Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1-1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2-1}}} 
-\end{equation}
-ki je ob izpolnjenih pogojih (dovolj velik vzorec) porazdeljena približno po standardni normalni ($z$) porazdelitvi. Ta izraz vrne identično vrednost kot enačba (1).
-
-Formalno gledano ta testna statistika ni porazdeljena kot $t$ porazdelitev (ocenimo le en parameter, ne dva), vendar bomo pri poročanju p vrednosti $t$ porazdelitev, ker bomo tako bolj konzervativni in tako upamo, da bo napaka prve vrste res $\leq \alpha$ (predvsem pri manjših vzorcih, ko ima $t$ porazdelitev širše repe kot normalna in bo dala višje p vrednosti in širše IZ).
+$$
+Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1 - \hat{p})\left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}
+$$
+, kjer je
+$$
+\hat{p}=\frac{n_1 \hat{p}_1+n_2 \hat{p}_2}{n_1+n_2}
+$$
+, ki je ob izpolnjenih pogojih (dovolj velik vzorec v obeh skupinah - pravilo čez palec $np>5$ in $n(1-p)>5$) porazdeljena približno po standardni normalni ($z$) porazdelitvi.
 
 ## Uteženi podatki
 
-Postopamo isto kot v poglavju za številske spremenljivke.
+Ker v literaturi ne obstaja formula za skupen (*pooled* - $\hat{p}$) utežen delež, ocenimo standardno napako kar po formuli (3) za vsak delež posebej (kot smo že omenili, je delež povprečje dihotomne spremenljivke), saj v primeru neodvisnih vzorcev velja $Var(p_{1}-p_{2})=Var(p_1) + Var(p_2)$.
 
+Testna statistika za utežen delež je torej:
+
+$$
+Z_w = \frac{\hat{p}_{w1} - \hat{p}_{w2}}{\sqrt{var(\hat{p}_{w1}) + var(\hat{p}_{w2})}} 
+$$
 
 ```{r, eval=FALSE}
-t1 = sample(0:1, 100, TRUE, c(0.3, 0.7))
-t2 = sample(0:1, 100, TRUE, c(0.3, 0.7))
-
-wtd_t_test(t1, t2)
-
-p1 = mean(t1)
-p2 = mean(t2)
-
-(p2-p1)/(sqrt(p1*(1-p1)/(100-1) + p2*(1-p2)/(100-1)))
-```
-
 # Simulacije (izračun vzorčne variance)
-
-V izdelavi...
-
-```{r, eval=FALSE}
 library(tidyverse)
 library(anesrake)
+library(survey)
 
 generate_data <- function(n, beta0 = 10, beta1 = 3, sigma = 2, pA){
   data <- data.frame(row.names = seq_len(n))
   
-  data$spremenljivka_X <- sample(1:4, size = n, replace = TRUE, prob = c(0.4, 0.2, 0.2, 0.2))
+  data$spremenljivka_X <- sample(1:4, size = n, replace = TRUE, prob = c(0.3, 0.3, 0.3, 0.1))
   
   # vrednosti slučajnih napak
   epsilon <- rnorm(n, mean = 0, sd = sigma)
@@ -139,7 +131,7 @@ generate_data <- function(n, beta0 = 10, beta1 = 3, sigma = 2, pA){
 }
 
 
-spremenljivka_X_target <- c(0.2, 0.2, 0.2, 0.4)
+spremenljivka_X_target <- c(0.3, 0.3, 0.3, 0.1)
 names(spremenljivka_X_target) <- 1:4
 
 spremenljivka_A_target <- c(0.5, 0.5)
@@ -153,17 +145,29 @@ n <- 1000
 
 caseid <- 1:n
 
-n_sim <- 1000
+n_sim <- 500
 
 results <- matrix(data = rep(NA, 12*n_sim), ncol = 12,
                   dimnames = list(NULL,
                                   c("povp", "utezeno_povp", "cor", "var_utezi", "se2/n", "se_w2/n", "se_cov", "se_VIF", "se_w", "cov", "bias", "var_cov")))
 
 for(i in 1:n_sim){
-  data <- generate_data(n = n, beta0 = 20, beta1 = -10, sigma = 1, pA = 0.6)
+  data <- generate_data(n = n, beta0 = 3, beta1 = 10, sigma = 1, pA = 0.6)
+  x <- data$spremenljivka_Y
 
   # RAKING
-  weights <- anesrake::anesrake(targets, data, caseid = caseid, type = "nolim")$weightvec
+  # weights <- anesrake::anesrake(targets, data, caseid = caseid, type = "nolim")$weightvec
+
+  # data$utezi <- weights
+  design <- svydesign(ids = ~1, data = data)
+
+  rr <- rake(design, list(~spremenljivka_X,~spremenljivka_A),
+             list(data.frame(spremenljivka_X = 1:4, Freq = spremenljivka_X_target*1000),
+                  data.frame(spremenljivka_A = 0:1, Freq = spremenljivka_A_target*1000)))
+  # 
+  weights <- weights(rr)
+  
+  # all.equal(weights, weights2)
   
   # SHRANIMO REZULTATE
   # neuteženo povprečje
@@ -195,11 +199,16 @@ for(i in 1:n_sim){
   #   weights_boot <- anesrake::anesrake(targets, data_boot, caseid = caseid, type = "nolim")$weightvec
   #   boot_mu[j] <- weighted.mean(x = data_boot$spremenljivka_Y, w = weights_boot)
   # }
-  # results[i,10] <-   ((cov(data$spremenljivka_Y^2, weights^2) + mean(data$spremenljivka_Y^2)*mean(weights^2)) - (cov(data$spremenljivka_Y, weights) + mean(data$spremenljivka_Y)*mean(weights))^2)/n
   
   results[i,10] <- cov(data$spremenljivka_Y, weights)
   results[i,11] <- mu - mean(data$spremenljivka_Y)
-  results[i,12] <- (1/n^2) * (cov(data$spremenljivka_Y^2, weights^2) + (var(data$spremenljivka_Y) + mean(data$spremenljivka_Y)^2) * (var(weights) + mean(weights)^2) - (cov(data$spremenljivka_Y,weights) + mean(data$spremenljivka_Y)*mean(weights))^2)
+  
+  # bootstrap SE
+  # samps <- lapply(1:1000, function(g) sample(1:length(x), round(sum(weights, na.rm=TRUE), 0), replace=TRUE, prob=weights))
+  # sepests <- sapply(samps, function(q) mean(x[q], na.rm=TRUE))
+  
+
+  results[i,12] <- SE(svymean(data$spremenljivka_Y, rr))^2
 }
 
 
@@ -224,15 +233,6 @@ mean(results[,11])
 mean(results[,3])
 
 
-
-m = replicate(1000, mean(rnorm(100, 3, 10)))
-hist(m, breaks = 100, freq = FALSE)
-curve(dnorm(x, mean(m), sd(m)), add = TRUE)
-
-
-m = replicate(1000, mean(runif(100, 3, 10))/mean(runif(100, 10, 13)))
-hist(m, breaks = 100, freq = FALSE)
-curve(dnorm(x, mean(m), sd(m)), add = TRUE)
 
 # https://www.alexstephenson.me/post/2022-04-02-weighted-variance-in-r/#fn1
 weighted.se.mean <- function(x, w, na.rm = T){
@@ -261,16 +261,22 @@ weighted.se.mean2 <- function(x, weights_x){
   i <- !is.na(x)
   x <- x[i]
   weights_x <- weights_x[i]
-  weights_x <- weights_x/mean(weights_x)
+  # weights_x <- weights_x/mean(weights_x)
   
   mu1 = weighted.mean(x, weights_x)
-  u1 <- x * weights_x
-  se1 <- (var(u1, na.rm = TRUE) + mu1^2 * var(weights_x, na.rm = TRUE) - 2 * mu1 * cov(u1, weights_x))/(sum(weights_x, na.rm = TRUE))
+  # u1 <- x * weights_x
+  # se1 <- (var(u1, na.rm = TRUE) + mu1^2 * var(weights_x, na.rm = TRUE) - 2 * mu1 * cov(u1, weights_x))/(sum(weights_x, na.rm = TRUE))
+  # se1
+  
+  n <- sum(!is.na(x))
+  
+  u1 <- weights_x * x
+  se1 <- (n * var(u1) + mu1^2 * n * var(weights_x) - 2 * mu1 * n * cov(u1, weights_x))/(sum(weights_x)^2)
   se1
 }
 
 weighted.se.mean3 <- function(x, weights){
-    i <- !is.na(x)
+  i <- !is.na(x)
   x <- x[i]
   weights <- weights[i]
   weights <- weights/mean(weights)
@@ -280,14 +286,29 @@ weighted.se.mean3 <- function(x, weights){
 }
 
 weighted.se.mean4 <- function(x, weights){
+  # n = length(x)
+  # survey dobimo identično SE, razen če so manjkajoče vrednosti ko survey zgleda vzame kar cel n kot je bila baza
+  # ali je ta n št. clustrov (po Lohr)
   i <- !is.na(x)
   x <- x[i]
   weights <- weights[i]
-  weights <- weights/mean(weights)
+  # weights <- weights/mean(weights)
   
   n = sum(!is.na(x))
-  mu = weighted.mean(x, weights)
+
+  mu = weighted.mean(x, weights, na.rm = TRUE)
   (n/((n-1)*sum(weights)^2)) * sum(weights^2 * (x - mu)^2)
+}
+
+weighted.se.mean5 <- function(x, weights){
+  i <- !is.na(x)
+  x <- x[i]
+  weights <- weights[i]
+  weights <- weights/sum(weights)
+  n = sum(!is.na(x))
+  
+  mu = weighted.mean(x, weights)
+  sum(weights^2 * (x - mu)^2)
 }
 
 weighted.se.mean(baza1[[stevilske_spremenljivke[3]]], utezi1)
@@ -295,6 +316,47 @@ weighted.se.mean3(baza1[[stevilske_spremenljivke[3]]], utezi1)
 
 weighted.se.mean2(baza1[[stevilske_spremenljivke[3]]], utezi1) # ISTO !!!
 weighted.se.mean4(baza1[[stevilske_spremenljivke[3]]], utezi1)
+weighted.se.mean5(baza1[[stevilske_spremenljivke[3]]], utezi1)
+
+weighted.se.mean5(baza1[[stevilske_spremenljivke[3]]], utezi1) #ISTO
+wtd.var(baza1[[stevilske_spremenljivke[3]]], utezi1)/sum(!is.na(baza1[[stevilske_spremenljivke[3]]]))
+```
+
+```{r, eval=FALSE}
+library(survey)
+ds <- svydesign(ids = ~1, data = baza1, weights = utezi1)
+
+as.numeric(SE(svymean(baza1[[stevilske_spremenljivke[3]]], design = ds, na.rm = T))^2)
+
+svy<-NULL
+me<-NULL
+for(i in seq_along(stevilske_spremenljivke)){
+  svy <- c(svy, as.numeric(SE(svymean(baza1[[stevilske_spremenljivke[i]]], design = ds, na.rm = T))^2))
+  me <- c(me, weighted.se.mean4(baza1[[stevilske_spremenljivke[i]]], baza1$weights))
+}
+
+all.equal(svy, me)
+
+
+data(api)
+apiclus1$spol <- as.factor(sample(0:1, size = 183, replace = T, prob = c(0.5, 0.5)))
+dclus1<-svydesign(id = ~1, data=apiclus1, weights = ~pw)
 
 ```
 
+
+# Viri
+
+Gatz, D. F., & Smith, L. (1995). The standard error of a weighted mean concentration—I. Bootstrapping vs other methods. *Atmospheric Environment, 29*(11), 1185-1193.
+
+Kalton, G. & Vehovar, V. (2001). *Vzorčenje v anketah*. Ljubljana : Fakulteta za družbene vede
+
+Lohr, S.L. (2019). *Sampling: Design and Analysis (2nd ed.)*. Chapman and Hall/CRC. https://doi.org/10.1201/9780429296284
+
+Lu, H., & Gelman, A. (2003). A method for estimating design-based sampling variances for surveys with weighting, poststratification, and raking. *Journal of Official Statistics, 19*(2), 133-151.
+
+Lumley, T. (2011). *Complex surveys: a guide to analysis using R*. John Wiley & Sons.
+
+Ruxton, G. D. (2006). The unequal variance t-test is an underused alternative to Student's t-test and the Mann-Whitney U test. *Behavioral Ecology, 17*(4), 688-690.
+
+Zimmerman, D. W. (2004). A note on preliminary tests of equality of variances. *British Journal of Mathematical and Statistical Psychology, 57*(1), 173-181.
