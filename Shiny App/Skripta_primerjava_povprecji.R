@@ -1,9 +1,3 @@
-# potrebni paketi
-library(haven)
-library(labelled)
-library(weights)
-library(openxlsx)
-library(stringr)
 
 # TODO
 # če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
@@ -29,7 +23,7 @@ count_rel_diff <- function(vec, p_vec) {
 }
 
 # funkcija za utežene frekvence
-weighted_table = function(x, weights) {
+weighted_table <- function(x, weights) {
   use <- !is.na(x)
   x <- x[use]
   weights <- weights[use]
@@ -91,12 +85,10 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                               utezi2 = NULL,
                               stevilske_spremenljivke = NULL,
                               nominalne_spremenljivke = NULL,
-                              se_calculation = c("taylor_se", "survey_se"),
+                              se_calculation,
                               survey_design1 = NULL,
                               survey_design2 = NULL,
                               file) {
-  
-  se_calculation <- match.arg(se_calculation)
   
   if(se_calculation == "survey_se"){
     utezi1 <- weights(survey_design1)
@@ -153,6 +145,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     imena_st_1 <- names(baza1)[names(baza1) %in% stevilske_spremenljivke]
     imena_st_2 <- names(baza2)[names(baza2) %in% stevilske_spremenljivke]
     
+    # preverimo ujemanje imen spremenljivk v obeh bazah
     non_st_spr <- union(setdiff(imena_st_1, imena_st_2), setdiff(imena_st_2, imena_st_1))
     
     if(length(imena_st_1) != length(imena_st_2)){
@@ -318,8 +311,10 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # })
       
       utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], weights_x = utezi1, weights_y = utezi2,
-                   se_calculation = se_calculation, survey_design1 = survey_design1, survey_design2 = survey_design2)
+        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]],
+                   weights_x = utezi1, weights_y = utezi2,
+                   se_calculation = se_calculation,
+                   survey_design1 = survey_design1, survey_design2 = survey_design2)
       })
       
       tabela_st_u <- data.frame(row.names = seq_along(utezene_statistike))

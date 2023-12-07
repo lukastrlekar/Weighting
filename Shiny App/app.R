@@ -2,14 +2,19 @@ library(shiny)
 library(shinyWidgets)
 library(shinycssloaders)
 
+library(haven)
+library(labelled)
+library(weights)
+library(openxlsx)
+library(stringr)
+library(cocor)
+
 source("Skripta_primerjava_povprecji.R")
+source("Primerjava_korelacij.R")
 
 # Define UI 
 ui <- fluidPage(
-    titlePanel("Primerjava neuteženih in uteženih povprečji in deležev iz dveh SPSS baz"),
-    
-    tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf", target = "_blank",
-           "Priloga - statistični izračuni >>>"),
+    titlePanel("Primerjava neuteženih in uteženih povprečji, deležev in korelacij iz dveh SPSS baz"),
     
     h3("Nalaganje podatkov"),
     br(),
@@ -20,8 +25,8 @@ ui <- fluidPage(
              fileInput("upload_baza2", label = "Naloži 2. SPSS bazo", accept = ".sav"))),
     fluidRow(
       column(8,
-             p("Opomba: relativna pristranskost se bo računala kot da je točkovna ocena v prvi bazi prava."),
-             p("Opomba: pred analizo se bo uteži reskaliralo, da bo povprečje 1 (ne vpliva na izračun standardnih napak, le na frekvence)."))),
+             p("Opomba: relativna pristranskost (relativna razlika) se bo računala kot, da je točkovna ocena v prvi bazi prava."),
+             p("Opomba: pred analizo se bo uteži reskaliralo, da bo povprečje 1 (ne vpliva na izračun standardnih napak, povprečji in deležev, le na frekvence)."))),
     hr(),
     h3("Imena baz"),
     br(),
@@ -85,7 +90,7 @@ ui <- fluidPage(
                                 label = "Izberi spremenljivko uteži iz 1. baze:",
                                 choices = NULL,
                                 multiple = TRUE,
-                                width = "100%",
+                                width = "80%",
                                 options = pickerOptions(actionsBox = TRUE,
                                                         liveSearch = TRUE,
                                                         maxOptions = 1))),
@@ -95,17 +100,36 @@ ui <- fluidPage(
                                 label = "Izberi spremenljivko uteži iz 2. baze:",
                                 choices = NULL,
                                 multiple = TRUE,
-                                width = "100%",
+                                width = "80%",
                                 options = pickerOptions(actionsBox = TRUE,
                                                         liveSearch = TRUE,
                                                         maxOptions = 1))))),
     hr(),
     h3("Prenos datoteke"),
     br(),
-    downloadButton("prenos", label = "Prenesi Excel datoteko", class = "btn-primary", icon = icon("file-excel")),
+    tabsetPanel(
+      tabPanel("Primerjava povprečji in deležev",
+               br(),
+               br(),
+               downloadButton("prenos",
+                              label = HTML("&nbsp &nbsp Prenesi Excel datoteko &nbsp &nbsp &nbsp"),
+                              class = "btn-primary",
+                              icon = icon("file-excel")),
+               br(),
+               br(),
+               br(),
+               tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf", target = "_blank",
+                      "Priloga - statistični izračuni >>>"),),
+      tabPanel("Primerjava korelacij",
+               br(),
+               br(),
+               downloadButton("prenos_korelacije",
+                              label = HTML("&nbsp &nbsp Prenesi Excel datoteko &nbsp &nbsp &nbsp"),
+                              class = "btn-primary",
+                              icon = icon("file-excel")))
+    ),
     br(),
-    br()
-    
+    hr()
 )
 
 # Define server logic 
@@ -155,12 +179,6 @@ server <- function(input, output, session) {
       paste("Statistike.xlsx")
     },
     content = function(file) {
-      # if(!isTRUE(all.equal(mean(podatki1()[[input$spr_utezi1]], na.rm = TRUE), 1))){
-      #   showModal(modalDialog(HTML("Povprečje uteži v 1. bazi ni enako 1."),
-      #                         easyClose = TRUE,
-      #                         footer = NULL))
-      # }
-
       showModal(modalDialog(HTML("<h3><center>Prenašanje datoteke</center></h3>"),
                             shinycssloaders::withSpinner(uiOutput("loading"), type = 8),
                             footer = NULL))
@@ -186,6 +204,39 @@ server <- function(input, output, session) {
                         survey_design1 = load_to_environment(input$upload_svydesign_1$datapath),
                         survey_design2 = load_to_environment(input$upload_svydesign_2$datapath),
                         file = file)
+    }
+  )
+  
+  output$prenos_korelacije <- downloadHandler(
+    filename = function() {
+      paste("Primerjava_korelacij.xlsx")
+    },
+    content = function(file) {
+      
+      showModal(modalDialog(HTML("<h3><center>Prenašanje datoteke</center></h3>"),
+                            shinycssloaders::withSpinner(uiOutput("loading"), type = 8),
+                            footer = NULL))
+      on.exit(removeModal())
+      
+      if(input$se_calculation == "taylor_se"){
+        utezi1 <- podatki1()[[input$spr_utezi1]]
+        utezi2 <- podatki2()[[input$spr_utezi2]]
+      } else {
+        utezi1 <- NULL
+        utezi2 <- NULL
+      }
+      
+      izvoz_excel_korelacije(baza1 = podatki1(),
+                             baza2 = podatki2(),
+                             ime_baza1 = input$ime1,
+                             ime_baza2 = input$ime2,
+                             utezi1 = utezi1,
+                             utezi2 = utezi2,
+                             stevilske_spremenljivke = input$stevilske_spr,
+                             se_calculation = input$se_calculation,
+                             survey_design1 = load_to_environment(input$upload_svydesign_1$datapath),
+                             survey_design2 = load_to_environment(input$upload_svydesign_2$datapath),
+                             file = file)
     }
   )
 }
