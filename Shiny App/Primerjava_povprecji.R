@@ -1,4 +1,3 @@
-
 # TODO
 # če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
 
@@ -10,6 +9,8 @@ load_to_environment <- function(RData, env = new.env()) {
 
 # funkcija ki prešteje št. relativnih razlik glede na intervale in št. stat. značilnih spremenljivk
 count_rel_diff <- function(vec, p_vec) {
+  vec <- vec[!is.na(vec)]
+  p_vec <- p_vec[!is.na(p_vec)]
   vec <- abs(vec)
   
   frek <- c(sum(vec > 20), sum(vec > 10 & vec <= 20), sum(vec >= 5 & vec <= 10), sum(vec < 5))
@@ -355,7 +356,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                            "% od vseh spremenljivk" = frekvence_rel_razlike_neutezene$p_sums/sum(frekvence_rel_razlike_neutezene$sums),
                            "% od relativne razlike" = frekvence_rel_razlike_neutezene$p_sums/frekvence_rel_razlike_neutezene$sums,
                            "Kumul f*" = frekvence_rel_razlike_neutezene$p_cumsums,
-                           "Kumul %*" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$p_sums),
+                           "Kumul %*" = frekvence_rel_razlike_neutezene$p_cumsums/sum(frekvence_rel_razlike_neutezene$sums),
                            # utežene statistike
                            "f" = frekvence_rel_razlike_utezene$sums,
                            "%" = frekvence_rel_razlike_utezene$sums/sum(frekvence_rel_razlike_utezene$sums),
@@ -365,7 +366,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                            "% od vseh spremenljivk" = frekvence_rel_razlike_utezene$p_sums/sum(frekvence_rel_razlike_utezene$sums),
                            "% od relativne razlike" = frekvence_rel_razlike_utezene$p_sums/frekvence_rel_razlike_utezene$sums,
                            "Kumul f*" = frekvence_rel_razlike_utezene$p_cumsums,
-                           "Kumul %*" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$p_sums),
+                           "Kumul %*" = frekvence_rel_razlike_utezene$p_cumsums/sum(frekvence_rel_razlike_utezene$sums),
                            check.names = FALSE)
       
       tbl_st[is.na(tbl_st)] <- 0
