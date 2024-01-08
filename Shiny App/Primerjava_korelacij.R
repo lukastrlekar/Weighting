@@ -324,11 +324,10 @@ izvoz_excel_korelacije <- function(baza1 = NULL,
                 x = "Primerjava Pearsonovih korelacijskih koeficientov (r) med 2 neodvisnima vzorcema",
                 startCol = 1, startRow = 1)
       
-      mergeCells(wb = wb, sheet = sheet_name, cols = 1:(length(stevilske_spremenljivke) + 3), rows = 1)
+      # mergeCells(wb = wb, sheet = sheet_name, cols = 1:(length(stevilske_spremenljivke) + 3), rows = 1)
       
       addStyle(wb = wb, sheet = sheet_name,
                style = createStyle(textDecoration = "bold",
-                                   halign = "center", valign = "center",
                                    fontSize = 14),
                rows = 1, cols = 1,
                gridExpand = TRUE, stack = TRUE)
@@ -368,25 +367,37 @@ izvoz_excel_korelacije <- function(baza1 = NULL,
                 x = "Signifikanca: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001",
                 startCol = 1, startRow = 6)
       
+      if(anyNA(c(cors_baza1, cors_baza2))){
+        writeData(wb = wb,
+                  sheet = sheet_name,
+                  x = "NA: korelacije ni mogoče izračunati, ker je vsaj ena od spremenljivk konstanta.",
+                  startCol = 1, startRow = 7)
+      }
+      
       writeData(wb = wb,
                 sheet = sheet_name,
                 x = table_name,
-                startCol = 1, startRow = 7)
+                startCol = 4, startRow = 8)
       
-      mergeCells(wb = wb, sheet = sheet_name,
-                 cols = 1:(length(stevilske_spremenljivke) + 3), rows = 7)
+      # mergeCells(wb = wb, sheet = sheet_name,
+      #            cols = 1:(length(stevilske_spremenljivke) + 3), rows = 8)
       
       addStyle(wb = wb, sheet = sheet_name,
                style = createStyle(textDecoration = "bold",
-                                   halign = "center", valign = "center",
+                                   halign = "left", valign = "center",
                                    fontSize = 12),
-               rows = 7, cols = 1,
+               rows = 8, cols = 4,
                gridExpand = TRUE, stack = TRUE)
       
       setColWidths(wb = wb,
                    sheet = sheet_name,
-                   cols = 1:3,
-                   widths = c(32, 15, 22))
+                   cols = 1:2,
+                   widths = c(32, 15))
+      
+      setColWidths(wb = wb,
+                   sheet = sheet_name,
+                   cols = 3,
+                   widths = "auto")
       
       setColWidths(wb = wb,
                    sheet = sheet_name,
@@ -410,7 +421,7 @@ izvoz_excel_korelacije <- function(baza1 = NULL,
                      n_baza2 = n_baza2,
                      cohens_q = cohens_q,
                      p_values = p_values,
-                     row_start = 8,
+                     row_start = 9,
                      labele = labele,
                      table_name = "Neutežene korelacije",
                      sheet_name = "Neutežene korelacije")
@@ -446,7 +457,7 @@ izvoz_excel_korelacije <- function(baza1 = NULL,
                        n_baza2 = n_baza2,
                        cohens_q = w_cohens_q,
                        p_values = w_p_values,
-                       row_start = 8,
+                       row_start = 9,
                        labele = labele,
                        table_name = "Utežene korelacije",
                        sheet_name = "Utežene korelacije")

@@ -1,5 +1,6 @@
 # TODO
 # če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
+# uteži nja bodo opcijske kot pri korelacijah
 
 # pomožne funkcije
 load_to_environment <- function(RData, env = new.env()) {

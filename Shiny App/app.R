@@ -123,7 +123,7 @@ ui <- fluidPage(
     
     tabPanel(h4(strong("Primerjava Pearsonovih korelacij")),
              br(),
-             h4(strong("Grafični pregled korelacijske matrike (v izdelavi...)")),
+             h4(strong("Grafični pregled korelacijske matrike")),
              p("Matrika razsevnih grafikonov z vrisanimi premicami predpostavke linearne povezanosti (modra brava) in gladilnikom (rdeča barva).
                Zaradi večje preglednosti so točke zatresene."),
              br(),
