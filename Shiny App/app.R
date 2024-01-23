@@ -9,6 +9,7 @@ library(weights)
 library(openxlsx)
 library(stringr)
 library(cocor)
+library(survey)
 
 source("Primerjava_povprecji.R")
 source("Primerjava_korelacij.R")
@@ -109,6 +110,13 @@ ui <- fluidPage(
              hr(),
              h4(strong("Prenos datoteke")),
              br(),
+             # checkboxInput(inputId = "checkbox_vzorec_podvzorec",
+             #               label = "Primerjati želim celoten vzorec s podvzorcem",
+             #               width = "100%"),
+             # conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
+             #                  p("Obe naloženi bazi predstavljata celoten vzorec. Izvedla se bo primerjava cel vzorec (obe bazi) in podvzorec 2 (druga baza)."),
+             #                  p("Ime skupne baze:")),
+             # br(),
              downloadButton("prenos",
                             label = HTML("&nbsp &nbsp Prenesi Excel datoteko &nbsp &nbsp &nbsp"),
                             class = "btn-primary",

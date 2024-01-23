@@ -1,6 +1,6 @@
 # TODO
 # če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
-# uteži nja bodo opcijske kot pri korelacijah
+# uteži naj bodo opcijske kot pri korelacijah
 
 # pomožne funkcije
 load_to_environment <- function(RData, env = new.env()) {
@@ -35,7 +35,14 @@ weighted_table <- function(x, weights) {
 }
 
 # funkcija za izračun testne statistike (Welchev t-test)
-wtd_t_test <- function(x, y, weights_x = NULL, weights_y = NULL, prop = FALSE, se_calculation, survey_design1, survey_design2){
+wtd_t_test <- function(x,
+                       y,
+                       weights_x = NULL,
+                       weights_y = NULL,
+                       prop = FALSE,
+                       se_calculation,
+                       survey_design1,
+                       survey_design2){
 
   if(is.null(weights_x)) weights_x <- rep(1, length(x))
 
