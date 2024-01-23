@@ -4,7 +4,7 @@ Pred izvedbo analiz koda preveri, da so imena izbranih spremenljivk enaka v obeh
 
 ## Shiny aplikacija
 
-Lokalno se požene aplikacijo z naslednjo kodo (za delovanje je potrebno imeti nameščen R in naslednje pakete `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`, `stringr`, `cocor`, `survey`):
+Lokalno se požene aplikacijo z naslednjo kodo (za delovanje je potrebno imeti nameščen [R](https://cran.r-project.org/) in pakete `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`, `shinyjs`, `stringr`, `cocor`, `survey`):
 
 ```
 # namesti manjkajoče pakete
