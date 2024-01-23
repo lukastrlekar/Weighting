@@ -7,13 +7,13 @@ Pred izvedbo analiz koda preveri, da so imena izbranih spremenljivk enaka v obeh
 Lokalno se požene aplikacijo z naslednjo kodo (za delovanje je potrebno imeti nameščen [R](https://cran.r-project.org/) in pakete `haven`, `labelled`, `weights`, `openxlsx`, `shiny`, `shinyWidgets`, `shinycssloaders`, `shinyjs`, `stringr`, `cocor`, `survey`):
 
 ```
-# namesti manjkajoče pakete
+# namesti se manjkajoče pakete
 paketi <- c("haven", "labelled", "weights", "openxlsx", "shiny", "shinyWidgets", "shinycssloaders", "shinyjs", "stringr", "cocor", "survey")
 
 for(p in paketi){
   if(!require(p, character.only = TRUE)) install.packages(p)
 }
 
-# poežene se aplikacija
+# požene se aplikacija
 shiny::runGitHub(repo = "Weighting", username = "lukastrlekar", ref = "main", subdir = "Shiny App")
 ```
