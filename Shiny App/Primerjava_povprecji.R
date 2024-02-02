@@ -751,7 +751,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                             "% od vseh kategorij" = frekvence_rel_razlike_neutezene_nom$p_sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
                             "% od relativne razlike" = frekvence_rel_razlike_neutezene_nom$p_sums/frekvence_rel_razlike_neutezene_nom$sums,
                             "Kumul f*" = frekvence_rel_razlike_neutezene_nom$p_cumsums,
-                            "Kumul %*" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$p_sums),
+                            "Kumul %*" = frekvence_rel_razlike_neutezene_nom$p_cumsums/sum(frekvence_rel_razlike_neutezene_nom$sums),
                             # utežene statistike
                             "f" = frekvence_rel_razlike_utezene_nom$sums,
                             "%" = frekvence_rel_razlike_utezene_nom$sums/sum(frekvence_rel_razlike_utezene_nom$sums),
@@ -761,7 +761,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                             "% od vseh kategorij" = frekvence_rel_razlike_utezene_nom$p_sums/sum(frekvence_rel_razlike_utezene_nom$sums),
                             "% od relativne razlike" = frekvence_rel_razlike_utezene_nom$p_sums/frekvence_rel_razlike_utezene_nom$sums,
                             "Kumul f*" = frekvence_rel_razlike_utezene_nom$p_cumsums,
-                            "Kumul %*" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$p_sums),
+                            "Kumul %*" = frekvence_rel_razlike_utezene_nom$p_cumsums/sum(frekvence_rel_razlike_utezene_nom$sums),
                             check.names = FALSE)
       
       tbl_nom[is.na(tbl_nom)] <- 0
