@@ -1,6 +1,6 @@
 # TODO
-# če povprečje ni enako 1 samo opozorilo da se bo reskaliralo uteži
 # uteži naj bodo opcijske kot pri korelacijah
+# korelacije primerjava vzorec podvzorec
 
 # pomožne funkcije
 load_to_environment <- function(RData, env = new.env()) {
@@ -85,6 +85,84 @@ wtd_t_test <- function(x,
   c(povp1 = mu1, povp2 = mu2, diff = mu2 - mu1, t = t, p = p)
 }
 
+
+# funkcija za izračun testne statistike za primerjavo vzorca s podvzorcem
+wtd_t_test_sample_subsample <- function(sample,
+                                        subsample, # podvzorec 1
+                                        weights_sample = NULL,
+                                        weights_subsample){
+  
+  subsample_index <- !is.na(weights_subsample) 
+  subsample2 <- sample[!subsample_index] # podvzorec 2
+  
+  if(is.null(weights_sample)){
+    weights_sample <- rep(1, length(sample))
+    weights_subsample <- rep(1, length(sample))
+  }
+  
+  weights_subsample <- weights_subsample[subsample_index]
+  weights_sample <- weights_sample/mean(weights_sample)
+  
+  n_sample <- sum(!is.na(sample)) # n celega vzorca
+  n_subsample <- sum(!is.na(subsample)) # n podvzorca
+  
+  # delež vsebovanosti prvega podvzorca v celotnem vzorcu
+  w <- sum(weights_sample[subsample_index][!is.na(sample[subsample_index])])/sum(weights_sample[!is.na(sample)])
+  # w <- n_subsample/n_sample 
+  
+  # povprečji
+  mu_sample <- weighted.mean(x = sample, w = weights_sample, na.rm = TRUE)
+  mu_subsample <- weighted.mean(x = subsample, w = weights_subsample, na.rm = TRUE)
+  
+  if(w > 0 && w < 1){
+    use_subsample <- !is.na(subsample)
+    use_subsample2 <- !is.na(subsample2)
+    
+    subsample <- subsample[use_subsample]
+    subsample2 <- subsample2[use_subsample2]
+    
+    weights_subsample1 <- weights_sample[subsample_index] # uteži celega vzorca, izbran podvzorec 1
+    weights_subsample1 <- weights_subsample1[use_subsample]/mean(weights_subsample1[use_subsample])
+    
+    weights_subsample2 <- weights_sample[!subsample_index] # uteži celega vzorca, izbran podvzorec 2
+    weights_subsample2 <- weights_subsample2[use_subsample2]/mean(weights_subsample2[use_subsample2])
+    
+    weights_subsample <- weights_subsample[use_subsample]/mean(weights_subsample[use_subsample]) # uteži, utežene posebej za podvzorec 1
+    
+    taylor_se <- function(n, weights, x){
+      mu <- weighted.mean(x, weights)
+      (n/((n - 1) * sum(weights)^2)) * sum(weights^2 * (x - mu)^2)
+    }
+    
+    # SE^2
+    se_2 <- w^2 * taylor_se(n_subsample,
+                            weights_subsample1,
+                            subsample) + (1 - w)^2 * taylor_se(n_sample - n_subsample,
+                                                               weights_subsample2,
+                                                               subsample2) + taylor_se(n_subsample,
+                                                                                       weights_subsample,
+                                                                                       subsample) - (2 * w * (cov(weights_subsample1*subsample, weights_subsample*subsample)/n_subsample))
+    z <- (mu_subsample - mu_sample)/(sqrt(se_2))
+    
+    p <- pnorm(q = abs(z), lower.tail = FALSE) * 2
+    
+    c(povp1 = mu_sample,
+      povp2 = mu_subsample,
+      diff = mu_subsample - mu_sample,
+      w = w,
+      z = z,
+      p = p)
+    
+  } else {
+    c(povp1 = mu_sample,
+      povp2 = mu_subsample,
+      diff = mu_subsample - mu_sample,
+      w = w,
+      z = NA,
+      p = NA)
+  }
+}
+
 # glavna funkcija za izvoz tabel v Excel
 izvoz_excel_tabel <- function(baza1 = NULL,
                               baza2 = NULL,
@@ -97,11 +175,16 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                               se_calculation,
                               survey_design1 = NULL,
                               survey_design2 = NULL,
-                              file) {
+                              file,
+                              compare_sample_subsample = FALSE) {
   
   if(se_calculation == "survey_se"){
     utezi1 <- weights(survey_design1)
     utezi2 <- weights(survey_design2)
+  }
+  
+  if(compare_sample_subsample == TRUE){
+    baza2 <- baza1[!is.na(utezi2), , drop = FALSE]
   }
   
   if(!is.data.frame(baza1) || !is.data.frame(baza2)){
@@ -116,29 +199,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     stop("Uteži morajo biti v obliki numeričnega vektorja.")
   }
   
-  if(!isTRUE(all.equal(mean(utezi1, na.rm = TRUE), 1))){
-    warning("Povprečje uteži v 1. bazi ni enako 1. Uteži bodo reskalirane, da bo povprečje enako 1.")
-  }
-  
-  if(!isTRUE(all.equal(mean(utezi2, na.rm = TRUE), 1))){
-    warning("Povprečje uteži v 2. bazi ni enako 1. Uteži bodo reskalirane, da bo povprečje enako 1.")
-  }
-  
   if(anyNA(utezi1)){
     stop("Uteži v 1. bazi vsebujejo manjkajoče vrednosti.")
   }
   
-  if(anyNA(utezi2)){
+  if(anyNA(utezi2) && compare_sample_subsample == FALSE){
     stop("Uteži v 2. bazi vsebujejo manjkajoče vrednosti.")
   }
   
-  if(!is.null(stevilske_spremenljivke) && !is.character(stevilske_spremenljivke)){
-    stop("Podane številske spremenljivke morajo biti v obliki character vector.")
-  }
-  
-  if(!is.null(nominalne_spremenljivke) && !is.character(nominalne_spremenljivke)){
-    stop("Podane nominalne spremenljivke morajo biti v obliki character vector.")
-  }
+  # if(!is.null(stevilske_spremenljivke) && !is.character(stevilske_spremenljivke)){
+  #   stop("Podane številske spremenljivke morajo biti v obliki character vector.")
+  # }
+  # 
+  # if(!is.null(nominalne_spremenljivke) && !is.character(nominalne_spremenljivke)){
+  #   stop("Podane nominalne spremenljivke morajo biti v obliki character vector.")
+  # }
   
   wb <- createWorkbook()
   
@@ -168,8 +243,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     stevilske_spremenljivke <- imena_st_1[imena_st_1 %in% imena_st_2]
     
     # pretvorimo spss manjkajoče vrednosti v prave manjkajoče (NA) in uredimo bazi v isti vrstni red spremenljivk
-    baza1_na <- user_na_to_na(baza1[,stevilske_spremenljivke, drop = FALSE])
-    baza2_na <- user_na_to_na(baza2[,stevilske_spremenljivke, drop = FALSE])
+    baza1_na <- baza1[,stevilske_spremenljivke, drop = FALSE]
+    baza2_na <- baza2[,stevilske_spremenljivke, drop = FALSE]
     
     # preverimo, da je isto število kategorij v obeh bazah
     levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels", exact = TRUE))
@@ -284,7 +359,11 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # })
       # all.equal(statistike, statistike2)
       
-      statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], se_calculation = "taylor_se"))
+      if(compare_sample_subsample == FALSE) {
+        statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]], se_calculation = "taylor_se"))
+      } else if(compare_sample_subsample == TRUE) {
+        statistike <- lapply(stevilske_spremenljivke, FUN = function(x) wtd_t_test_sample_subsample(sample = baza1_na[[x]], subsample = baza2_na[[x]], weights_subsample = utezi2))
+      }
       
       # Neuteženo povprečje baza 1
       tabela_st[[paste0("Povprečje - ", ime_baza1)]] <- sapply(statistike, function(x) x[["povp1"]])
@@ -298,8 +377,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # Relativna razlika neuteženih povprečji
       tabela_st[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st[["Razlika v povprečjih - absolutna"]]/tabela_st[[paste0("Povprečje - ", ime_baza1)]])*100
       
-      # T-vrednost in signifikanca
-      tabela_st[["t"]] <- sapply(statistike, function(x) x[["t"]])
+      # T/Z-vrednost in signifikanca
+      if(compare_sample_subsample == FALSE) {
+        tabela_st[["t"]] <- sapply(statistike, function(x) x[["t"]])
+      } else if(compare_sample_subsample == TRUE) {
+        tabela_st[["z"]] <- sapply(statistike, function(x) x[["z"]])
+      }
       
       tabela_st[["p"]] <- sapply(statistike, function(x) x[["p"]])
       
@@ -319,12 +402,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       #     "p"     = test$coefficients[["p.value"]])
       # })
       
-      utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
-        wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]],
-                   weights_x = utezi1, weights_y = utezi2,
-                   se_calculation = se_calculation,
-                   survey_design1 = survey_design1, survey_design2 = survey_design2)
-      })
+      if(compare_sample_subsample == FALSE) {
+        utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+          wtd_t_test(x = baza1_na[[x]], y = baza2_na[[x]],
+                     weights_x = utezi1, weights_y = utezi2,
+                     se_calculation = se_calculation,
+                     survey_design1 = survey_design1, survey_design2 = survey_design2)
+        })
+      } else if(compare_sample_subsample == TRUE) {
+        utezene_statistike <- lapply(stevilske_spremenljivke, FUN = function(x){
+          wtd_t_test_sample_subsample(sample = baza1_na[[x]],
+                                      subsample = baza2_na[[x]],
+                                      weights_sample = utezi1,
+                                      weights_subsample = utezi2)
+        })
+      }
       
       tabela_st_u <- data.frame(row.names = seq_along(utezene_statistike))
       
@@ -340,12 +432,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       # Relativna razlika uteženih povprečji
       tabela_st_u[["Razlika v povprečjih - relativna (%)"]] <- (tabela_st_u[["Razlika v povprečjih - absolutna"]]/tabela_st_u[[paste0("Povprečje - ", ime_baza1)]])*100
       
-      # T-vrednost in signifikanca
-      tabela_st_u[["t"]] <- sapply(utezene_statistike, function(x) x[["t"]])
+      # Z/T-vrednost in signifikanca
+      if(compare_sample_subsample == FALSE) {
+        tabela_st_u[["t"]] <- sapply(utezene_statistike, function(x) x[["t"]])
+      } else if(compare_sample_subsample == TRUE){
+        tabela_st_u[["z"]] <- sapply(utezene_statistike, function(x) x[["z"]])
+      }
       
       tabela_st_u[["p"]] <- sapply(utezene_statistike, function(x) x[["p"]])
       
       tabela_st_u[["Signifikanca"]] <- weights::starmaker(tabela_st_u[["p"]])
+      
+      if(compare_sample_subsample == TRUE) {
+        tabela_st_u[["Delež podvzorca v vzorcu - neuteženo"]] <- sapply(statistike, function(x) x[["w"]])
+        tabela_st_u[["Delež podvzorca v vzorcu - uteženo"]] <- sapply(utezene_statistike, function(x) x[["w"]])
+      }
       
       ## Izvoz excel -------------------------------------------------------------
       
@@ -511,7 +612,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Opisne statistike",
-               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = c(7:12, 14:19),
+               style = createStyle(numFmt = "0.00"), rows = 3:(nrow(tabela_st)+2), cols = c(7:12, 14:19, 21:22),
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Opisne statistike",
@@ -550,8 +651,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     # funkcija za neutežene in utežene frekvenčne statistike
     tabela_nominalne <- function(spr, baza1, baza2, utezi1, utezi2){
       
-      data1 <- as_factor(user_na_to_na(baza1[[spr]]))
-      data2 <- as_factor(user_na_to_na(baza2[[spr]]))
+      data1 <- as_factor(baza1[[spr]])
+      data2 <- as_factor(baza2[[spr]])
       
       if(!all(levels(data1) == levels(data2))){
         return(paste("Kategorije v bazah se pri opisni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
@@ -578,25 +679,27 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         dummies1 <- weights::dummify(data1, keep.na = TRUE)
         dummies2 <- weights::dummify(data2, keep.na = TRUE)
         
-        # statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i) wtd_t_test(x = dummies1[,i], y = dummies2[,i]))
-        
-        # z-test za neodvisna deleža
-        n1 <- sum(!is.na(data1))
-        n2 <- sum(!is.na(data2))
-        
-        statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i){
-          test <- prop.test(x = c(sum(dummies1[,i], na.rm = TRUE), sum(dummies2[,i], na.rm = TRUE)),
-                            n = c(n1, n2), correct = FALSE)
+        if(compare_sample_subsample == FALSE) {
+          # z-test za neodvisna deleža
+          n1 <- sum(!is.na(data1))
+          n2 <- sum(!is.na(data2))
           
-          c("delez1" = test$estimate[[1]],
-            "delez2" = test$estimate[[2]],
-            "z" = unname(sqrt(test$statistic)),
-            "p" = test$p.value)
-        })
+          statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i){
+            test <- prop.test(x = c(sum(dummies1[,i], na.rm = TRUE), sum(dummies2[,i], na.rm = TRUE)),
+                              n = c(n1, n2), correct = FALSE)
+            
+            c("povp1" = test$estimate[[1]],
+              "povp2" = test$estimate[[2]],
+              "z" = unname(sqrt(test$statistic)),
+              "p" = test$p.value)
+          })
+        } else if(compare_sample_subsample == TRUE) {
+          statistika_nom <- lapply(seq_len(nrow(tabela_nom)), FUN = function(i) wtd_t_test_sample_subsample(sample = dummies1[,i], subsample = dummies2[,i], weights_subsample = utezi2))
+        }
         
-        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- sapply(statistika_nom, function(x) x[["delez1"]])*100 
+        tabela_nom[[paste0("Delež (%) - ", ime_baza1)]] <- sapply(statistika_nom, function(x) x[["povp1"]])*100 
         
-        tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- sapply(statistika_nom, function(x) x[["delez2"]])*100
+        tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] <- sapply(statistika_nom, function(x) x[["povp2"]])*100
         
         tabela_nom[["Razlika v deležih - absolutna"]] <- tabela_nom[[paste0("Delež (%) - ", ime_baza2)]] - tabela_nom[[paste0("Delež (%) - ", ime_baza1)]]
         
@@ -623,14 +726,21 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         tabela_nom_u[[paste0("N - ", ime_baza1)]] <- weighted_table(data1, utezi1)
         
         # Utežena frekvenca baza 2
-        tabela_nom_u[[paste0("N - ", ime_baza2)]] <- weighted_table(data2, utezi2)
+        tabela_nom_u[[paste0("N - ", ime_baza2)]] <- weighted_table(data2, utezi2[!is.na(utezi2)])
         
         # Utežen z-test za neodvisna deleža
-        utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
-          wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE,
-                     se_calculation = se_calculation, survey_design1 = survey_design1, survey_design2 = survey_design2)
-        })
-        
+        if(compare_sample_subsample == FALSE) {
+          utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
+            wtd_t_test(x = dummies1[,i], y = dummies2[,i], weights_x = utezi1, weights_y = utezi2, prop = TRUE,
+                       se_calculation = se_calculation, survey_design1 = survey_design1, survey_design2 = survey_design2)
+          })
+        } else if(compare_sample_subsample == TRUE) {
+          utezena_statistika_nom <- lapply(seq_len(nrow(tabela_nom_u)), FUN = function(i){
+            wtd_t_test_sample_subsample(sample = dummies1[,i], subsample = dummies2[,i],
+                                        weights_sample = utezi1, weights_subsample = utezi2)
+          })
+        }
+
         # Utežen delež baza 1
         tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- sapply(utezena_statistika_nom, function(x) x[["povp1"]]) * 100
         # tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]] <- (tabela_nom_u[[paste0("N - ", ime_baza1)]]/sum(tabela_nom_u[[paste0("N - ", ime_baza1)]]))*100
@@ -646,19 +756,32 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         # Relativna razlika uteženih deležev
         tabela_nom_u[["Razlika v deležih - relativna (%)"]] <- (tabela_nom_u[["Razlika v deležih - absolutna"]]/tabela_nom_u[[paste0("Delež (%) - ", ime_baza1)]])*100
         
-        tabela_nom_u[["z"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
+        if(compare_sample_subsample == FALSE) {
+          tabela_nom_u[["z"]] <- sapply(utezena_statistika_nom, function(x) x[["t"]])
+        } else if(compare_sample_subsample == TRUE) {
+          tabela_nom_u[["z"]] <- sapply(utezena_statistika_nom, function(x) x[["z"]])
+        }
         
         tabela_nom_u[["p"]] <- sapply(utezena_statistika_nom, function(x) x[["p"]])
         
         tabela_nom_u[["Signifikanca"]] <- weights::starmaker(tabela_nom_u[["p"]])
         
+        if(compare_sample_subsample == TRUE) {
+          tabela_nom_u[["Delež podvzorca v vzorcu - neuteženo"]] <- NA
+          tabela_nom_u[["Delež podvzorca v vzorcu - uteženo"]] <- NA
+        }
+        
         # Skupaj seštevek
         temp_df_u <- data.frame(t(c(colSums(tabela_nom_u[,1:4]), rep(NA, ncol(tabela_nom_u)-4))))
         names(temp_df_u) <- names(tabela_nom_u)
         
+        if(compare_sample_subsample == TRUE) {
+          temp_df_u[["Delež podvzorca v vzorcu - neuteženo"]] <- statistika_nom[[1]][["w"]]
+          temp_df_u[["Delež podvzorca v vzorcu - uteženo"]] <- utezena_statistika_nom[[1]][["w"]]
+        }
+        
         tabela_nom_u <- rbind(tabela_nom_u, temp_df_u)
         
-        # return function result
         return(cbind(tabela_nom, tabela_nom_u))
       }
     }
@@ -956,7 +1079,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = c(8,9,17,18),
+               style = createStyle(numFmt = "0.00"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = c(8,9,17,18,20:21),
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
@@ -964,7 +1087,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                gridExpand = TRUE, stack = TRUE)
       
       addStyle(wb = wb, sheet = "Frekvencne tabele",
-               style = createStyle(halign = "center"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 2:19,
+               style = createStyle(halign = "center"), rows = 1:(start_rows[length(start_rows)]+nrow(factor_tables[[length(factor_tables)]])), cols = 2:21,
                gridExpand = TRUE, stack = TRUE)
       
       setColWidths(wb = wb, sheet = "Frekvencne tabele", cols = 1, widths = 60)

@@ -22,19 +22,33 @@ ui <- fluidPage(
   br(),
   h4(strong("Nalaganje podatkov")),
   fluidRow(
-    column(4,
-           fileInput("upload_baza1", label = "Naloži 1. SPSS bazo", accept = ".sav")),
-    column(4,
-           fileInput("upload_baza2", label = "Naloži 2. SPSS bazo", accept = ".sav"))),
+    column(12,
+           checkboxInput(inputId = "checkbox_vzorec_podvzorec",
+                         label = "Primerjati želim celoten vzorec s podvzorcem",
+                         width = "100%")),
+    conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
+                     column(12,
+                     p("Navodila: naložite eno bazo, ki vsebuje 2 spremenljivki uteži - eno za celoten vzorec in drugo
+                       za podvzorec (spremenljivka uteži za podvzorec naj vsebuje vrednosti le pri enotah, ki spadajo
+                       v podvzorec, ki ga želite primerjati s celotnim vzorcem; pri ostalih enotah naj bodo manjkajoče vrednosti).")))),
   fluidRow(
-    column(8,
-           p("Opomba: relativna pristranskost (relativna razlika) se bo računala kot, da je točkovna ocena v prvi bazi prava."))),
+    column(6,
+           fileInput("upload_baza1", label = "Naloži 1. SPSS bazo", accept = ".sav")),
+    conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 0",
+                     column(6,
+                            fileInput("upload_baza2", label = "Naloži 2. SPSS bazo", accept = ".sav")))),
+  fluidRow(
+    column(12,
+           conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 0",
+                            p("Opomba: relativna pristranskost (relativna razlika) se bo računala kot, da je točkovna ocena v prvi bazi prava.")),
+           conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
+                            p("Opomba: relativna pristranskost (relativna razlika) se bo računala kot, da je točkovna ocena v celotnem vzorcu prava.")))),
   hr(),
   h4(strong("Imena baz")),
   fluidRow(
-    column(4,
+    column(6,
            textInput("ime1", label = "Ime 1. baze prikazano v Excel datoteki:", value = "baza 1")),
-    column(4,
+    column(6,
            textInput("ime2", label = "Ime 2. baze prikazano v Excel datoteki:", value = "baza 2"))),
   
   hr(),
@@ -78,16 +92,16 @@ ui <- fluidPage(
                               hr(),
                               h4(strong("Nalaganje svydesign objektov")),
                               fluidRow(
-                                column(4,
+                                column(6,
                                        fileInput("upload_svydesign_1", label = "Naloži svydesign R objekt za 1. bazo", accept = ".RData")),
-                                column(4,
+                                column(6,
                                        fileInput("upload_svydesign_2", label = "Naloži svydesign R objekt za 2. bazo", accept = ".RData")))),
              
              conditionalPanel(condition = 'input.se_calculation == "taylor_se"',
                               hr(),
                               h4(strong("Izbira uteži")),
                               fluidRow(
-                                column(4,
+                                column(6,
                                        pickerInput(
                                          inputId = "spr_utezi1",
                                          label = "Izberi spremenljivko uteži iz 1. baze:",
@@ -97,7 +111,7 @@ ui <- fluidPage(
                                          options = pickerOptions(actionsBox = TRUE,
                                                                  liveSearch = TRUE,
                                                                  maxOptions = 1))),
-                                column(4,
+                                column(6,
                                        pickerInput(
                                          inputId = "spr_utezi2",
                                          label = "Izberi spremenljivko uteži iz 2. baze:",
@@ -110,13 +124,6 @@ ui <- fluidPage(
              hr(),
              h4(strong("Prenos datoteke")),
              br(),
-             # checkboxInput(inputId = "checkbox_vzorec_podvzorec",
-             #               label = "Primerjati želim celoten vzorec s podvzorcem",
-             #               width = "100%"),
-             # conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
-             #                  p("Obe naloženi bazi predstavljata celoten vzorec. Izvedla se bo primerjava cel vzorec (obe bazi) in podvzorec 2 (druga baza)."),
-             #                  p("Ime skupne baze:")),
-             # br(),
              downloadButton("prenos",
                             label = HTML("&nbsp &nbsp Prenesi Excel datoteko &nbsp &nbsp &nbsp"),
                             class = "btn-primary",
@@ -126,6 +133,9 @@ ui <- fluidPage(
              p("Opomba: pred analizo se bo uteži reskaliralo, da bo povprečje 1 (ne vpliva na izračun standardnih napak, povprečji in deležev, le na frekvence)."),
              tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Statisti%C4%8Dni_izra%C4%8Duni.pdf", target = "_blank",
                     "Priloga - statistični izračuni >>>"),
+             conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
+                              tags$a(href = "https://github.com/lukastrlekar/Weighting/blob/main/Primerjava_vzorec_podvzorec.pdf", target = "_blank",
+                                     "Priloga - teoretična izpeljava variance razlike povprečji vzorca in podvzorca >>>")),
              br(),
              br()),
     
@@ -145,7 +155,7 @@ ui <- fluidPage(
              hr(),
              HTML("<h4><strong>Izbira uteži </strong><small>(opcijsko - če ne želite izračunati uteženih korelacij, pustite izbor uteži prazen)</small></h4>"),
              fluidRow(
-               column(4,
+               column(6,
                       pickerInput(
                         inputId = "spr_utezi1_cors",
                         label = "Izberi spremenljivko uteži iz 1. baze:",
@@ -155,7 +165,7 @@ ui <- fluidPage(
                         options = pickerOptions(actionsBox = TRUE,
                                                 liveSearch = TRUE,
                                                 maxOptions = 1))),
-               column(4,
+               column(6,
                       pickerInput(
                         inputId = "spr_utezi2_cors",
                         label = "Izberi spremenljivko uteži iz 2. baze:",
@@ -204,6 +214,24 @@ server <- function(input, output, session) {
   })
   
   observe({
+    if(input$checkbox_vzorec_podvzorec == TRUE) {
+      updateTextInput(session = session, inputId = "ime1", label = "Ime vzorca prikazano v Excel datoteki:", value = "vzorec")
+      updateTextInput(session = session, inputId = "ime2", label = "Ime podvzorca prikazano v Excel datoteki:", value = "podvzorec")
+      updatePickerInput(session = session, inputId = "spr_utezi1", label = "Izberi spremenljivko uteži za celoten vzorec:")
+      updatePickerInput(session = session, inputId = "spr_utezi2",
+                        label = "Izberi spremenljivko uteži za podvzorec (ki je hkrati tudi indikatorska spremenljivka pripadnosti podvzorca):")
+      updateRadioButtons(session = session, inputId = "se_calculation", selected = "taylor_se")
+      shinyjs::disable(id = "se_calculation")
+    } else {
+      updateTextInput(session = session, inputId = "ime1", label = "Ime 1. baze prikazano v Excel datoteki:", value = "baza 1")
+      updateTextInput(session = session, inputId = "ime2", label = "Ime 2. baze prikazano v Excel datoteki:", value = "baza 2")
+      updatePickerInput(session = session, inputId = "spr_utezi1", label = "Izberi spremenljivko uteži iz 1. baze:")
+      updatePickerInput(session = session, inputId = "spr_utezi2", label = "Izberi spremenljivko uteži iz 2. baze:")
+      shinyjs::enable(id = "se_calculation")
+    }
+  })
+  
+  observe({
     updatePickerInput(session = session,
                       inputId = "stevilske_spr",
                       choices = names(podatki1()))
@@ -222,9 +250,15 @@ server <- function(input, output, session) {
   })
   
   observe({
-    updatePickerInput(session = session,
-                      inputId = "spr_utezi2",
-                      choices = names(podatki2()))
+    if(input$checkbox_vzorec_podvzorec == TRUE) {
+      updatePickerInput(session = session,
+                        inputId = "spr_utezi2",
+                        choices = names(podatki1()))
+    } else {
+      updatePickerInput(session = session,
+                        inputId = "spr_utezi2",
+                        choices = names(podatki2()))
+    }
   })
   
   observe({
@@ -292,26 +326,45 @@ server <- function(input, output, session) {
                             footer = NULL))
       on.exit(removeModal())
       
-      if(input$se_calculation == "taylor_se"){
-        utezi1 <- podatki1()[[input$spr_utezi1]]
-        utezi2 <- podatki2()[[input$spr_utezi2]]
-      } else {
-        utezi1 <- NULL
-        utezi2 <- NULL
+      if(input$checkbox_vzorec_podvzorec == FALSE) {
+        
+        if(input$se_calculation == "taylor_se"){
+          utezi1 <- podatki1()[[input$spr_utezi1]]
+          utezi2 <- podatki2()[[input$spr_utezi2]]
+        } else {
+          utezi1 <- NULL
+          utezi2 <- NULL
+        }
+        
+        izvoz_excel_tabel(baza1 = podatki1(),
+                          baza2 = podatki2(),
+                          ime_baza1 = input$ime1,
+                          ime_baza2 = input$ime2,
+                          utezi1 = utezi1,
+                          utezi2 = utezi2,
+                          stevilske_spremenljivke = input$stevilske_spr,
+                          nominalne_spremenljivke = input$nominalne_spr,
+                          se_calculation = input$se_calculation,
+                          survey_design1 = load_to_environment(input$upload_svydesign_1$datapath),
+                          survey_design2 = load_to_environment(input$upload_svydesign_2$datapath),
+                          file = file,
+                          compare_sample_subsample = FALSE)
+        
+      } else if(input$checkbox_vzorec_podvzorec == TRUE) {
+        
+        izvoz_excel_tabel(baza1 = podatki1(),
+                          baza2 = NULL,
+                          ime_baza1 = input$ime1,
+                          ime_baza2 = input$ime2,
+                          utezi1 = podatki1()[[input$spr_utezi1]],
+                          utezi2 = podatki1()[[input$spr_utezi2]],
+                          stevilske_spremenljivke = input$stevilske_spr,
+                          nominalne_spremenljivke = input$nominalne_spr,
+                          se_calculation = "taylor_se",
+                          file = file,
+                          compare_sample_subsample = TRUE)
+        
       }
-      
-      izvoz_excel_tabel(baza1 = podatki1(),
-                        baza2 = podatki2(),
-                        ime_baza1 = input$ime1,
-                        ime_baza2 = input$ime2,
-                        utezi1 = utezi1,
-                        utezi2 = utezi2,
-                        stevilske_spremenljivke = input$stevilske_spr,
-                        nominalne_spremenljivke = input$nominalne_spr,
-                        se_calculation = input$se_calculation,
-                        survey_design1 = load_to_environment(input$upload_svydesign_1$datapath),
-                        survey_design2 = load_to_environment(input$upload_svydesign_2$datapath),
-                        file = file)
     }
   )
   
