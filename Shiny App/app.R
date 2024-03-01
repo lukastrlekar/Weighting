@@ -29,7 +29,7 @@ ui <- fluidPage(
     conditionalPanel(condition = "input.checkbox_vzorec_podvzorec == 1",
                      column(12,
                      p("Navodila: naložite eno bazo, ki vsebuje 2 spremenljivki uteži - eno za celoten vzorec in drugo
-                       za podvzorec (spremenljivka uteži za podvzorec naj vsebuje vrednosti le pri enotah, ki spadajo
+                       za podvzorec - oboje naj bo uteženo z istimi populacijskimi marginami (spremenljivka uteži za podvzorec naj vsebuje vrednosti le pri enotah, ki spadajo
                        v podvzorec, ki ga želite primerjati s celotnim vzorcem; pri ostalih enotah naj bodo manjkajoče vrednosti).")))),
   fluidRow(
     column(6,
