@@ -2,6 +2,8 @@
 # uteži naj bodo opcijske kot pri korelacijah
 # korelacije primerjava vzorec podvzorec
 
+# https://stackoverflow.com/questions/70626996/r-how-to-conduct-two-sample-t-test-with-two-different-survey-designs
+
 # pomožne funkcije
 load_to_environment <- function(RData, env = new.env()) {
   load(RData, env)
@@ -94,10 +96,12 @@ wtd_t_test_sample_subsample <- function(sample,
   
   subsample_index <- !is.na(weights_subsample) 
   subsample2 <- sample[!subsample_index] # podvzorec 2
+  indicator <- FALSE
   
   if(is.null(weights_sample)){
     weights_sample <- rep(1, length(sample))
     weights_subsample <- rep(1, length(sample))
+    indicator <- TRUE
   }
   
   weights_subsample <- weights_subsample[subsample_index]
@@ -114,7 +118,7 @@ wtd_t_test_sample_subsample <- function(sample,
   mu_sample <- weighted.mean(x = sample, w = weights_sample, na.rm = TRUE)
   mu_subsample <- weighted.mean(x = subsample, w = weights_subsample, na.rm = TRUE)
   
-  if(w > 0 && w < 1){
+  if(w > 0 && w <= 1){
     use_subsample <- !is.na(subsample)
     use_subsample2 <- !is.na(subsample2)
     
@@ -135,13 +139,30 @@ wtd_t_test_sample_subsample <- function(sample,
     }
     
     # SE^2
-    se_2 <- w^2 * taylor_se(n_subsample,
-                            weights_subsample1,
-                            subsample) + (1 - w)^2 * taylor_se(n_sample - n_subsample,
-                                                               weights_subsample2,
-                                                               subsample2) + taylor_se(n_subsample,
-                                                                                       weights_subsample,
-                                                                                       subsample) - (2 * w * (cov(weights_subsample1*subsample, weights_subsample*subsample)/n_subsample))
+    # se_2 <- sum(w^2 * taylor_se(n_subsample,
+    #                             weights_subsample1,
+    #                             subsample) , (1 - w)^2 * taylor_se(n_sample - n_subsample,
+    #                                                                weights_subsample2,
+    #                                                                subsample2) , taylor_se(n_subsample,
+    #                                                                                        weights_subsample,
+    #                                                                                        subsample) , - (2 * w * (cov(weights_subsample1*subsample, weights_subsample*subsample)/n_subsample)), na.rm = TRUE)
+    
+    mu_x <- weighted.mean(subsample, weights_subsample)
+    mu_y <- weighted.mean(subsample, weights_subsample1)
+    if(indicator == TRUE){
+      cov_xy <- sum((subsample - mu_x) * (subsample - mu_y) * weights_subsample * weights_subsample1) / ((n_subsample - 1) * n_subsample) # nepristranska cenilka (n-1)
+    } else {
+      cov_xy <- sum((subsample - mu_x) * (subsample - mu_y) * weights_subsample * weights_subsample1) / (sum(weights_subsample) * sum(weights_subsample1))
+    }
+
+    se_2 <- sum(w^2 * taylor_se(n_subsample,
+                                weights_subsample1,
+                                subsample) , (1 - w)^2 * taylor_se(n_sample - n_subsample,
+                                                                   weights_subsample2,
+                                                                   subsample2) , taylor_se(n_subsample,
+                                                                                           weights_subsample,
+                                                                                           subsample) , - (2 * w * cov_xy), na.rm = TRUE)
+    
     z <- (mu_subsample - mu_sample)/(sqrt(se_2))
     
     p <- pnorm(q = abs(z), lower.tail = FALSE) * 2
