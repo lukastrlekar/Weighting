@@ -12,8 +12,7 @@ load_to_environment <- function(RData, env = new.env()) {
 
 # funkcija ki prešteje št. relativnih razlik glede na intervale in št. stat. značilnih spremenljivk
 count_rel_diff <- function(vec, p_vec) {
-  vec <- vec[!is.na(vec)]
-  p_vec <- p_vec[!is.na(p_vec)]
+  p_vec[is.na(p_vec)] <- 1
   vec <- abs(vec)
   
   frek <- c(sum(vec > 20), sum(vec > 10 & vec <= 20), sum(vec >= 5 & vec <= 10), sum(vec < 5))
