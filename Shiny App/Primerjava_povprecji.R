@@ -15,9 +15,9 @@ count_rel_diff <- function(vec, p_vec) {
   p_vec[is.na(p_vec)] <- 1
   vec <- abs(vec)
   
-  frek <- c(sum(vec > 20), sum(vec > 10 & vec <= 20), sum(vec >= 5 & vec <= 10), sum(vec < 5))
+  frek <- c(sum(vec > 20, na.rm = TRUE), sum(vec > 10 & vec <= 20, na.rm = TRUE), sum(vec >= 5 & vec <= 10, na.rm = TRUE), sum(vec < 5, na.rm = TRUE))
   
-  p_frek <- c(sum(vec > 20 & p_vec < 0.05), sum(vec > 10 & vec <= 20 & p_vec < 0.05), sum(vec >= 5 & vec <= 10 & p_vec < 0.05), sum(vec < 5 & p_vec < 0.05))
+  p_frek <- c(sum(vec > 20 & p_vec < 0.05, na.rm = TRUE), sum(vec > 10 & vec <= 20 & p_vec < 0.05, na.rm = TRUE), sum(vec >= 5 & vec <= 10 & p_vec < 0.05, na.rm = TRUE), sum(vec < 5 & p_vec < 0.05, na.rm = TRUE))
   
   list(sums = frek,
        cumsums = cumsum(frek),
@@ -87,7 +87,7 @@ wtd_t_test <- function(x,
 }
 
 
-# funkcija za izračun testne statistike za primerjavo vzorca s podvzorcem
+# funkcija za izračun testne statistike za primerjavo vzorca s podvzorcem (podvzorec utežen posebej)
 wtd_t_test_sample_subsample <- function(sample,
                                         subsample, # podvzorec 1
                                         weights_sample = NULL,
@@ -160,7 +160,7 @@ wtd_t_test_sample_subsample <- function(sample,
                                                                    weights_subsample2,
                                                                    subsample2) , taylor_se(n_subsample,
                                                                                            weights_subsample,
-                                                                                           subsample) , - (2 * w * cov_xy), na.rm = TRUE)
+                                                                                           subsample), - (2 * w * cov_xy), na.rm = F)
     
     z <- (mu_subsample - mu_sample)/(sqrt(se_2))
     
@@ -205,14 +205,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   
   if(compare_sample_subsample == TRUE){
     baza2 <- baza1[!is.na(utezi2), , drop = FALSE]
-  }
-  
-  if(!is.data.frame(baza1) || !is.data.frame(baza2)){
-    stop("Baza mora biti SPSS podatkovni okvir.")
-  }
-  
-  if(is.null(utezi1) || is.null(utezi2)){
-    stop("Določite uteži!")
   }
   
   if(!is.numeric(utezi1) || !is.numeric(utezi2)){
@@ -262,9 +254,9 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     # izberemo samo spremenljivke, ki so prisotne v 1. in 2. bazi
     stevilske_spremenljivke <- imena_st_1[imena_st_1 %in% imena_st_2]
     
-    # pretvorimo spss manjkajoče vrednosti v prave manjkajoče (NA) in uredimo bazi v isti vrstni red spremenljivk
-    baza1_na <- baza1[,stevilske_spremenljivke, drop = FALSE]
-    baza2_na <- baza2[,stevilske_spremenljivke, drop = FALSE]
+    # uredimo bazi v isti vrstni red spremenljivk
+    baza1_na <- baza1[, stevilske_spremenljivke, drop = FALSE]
+    baza2_na <- baza2[, stevilske_spremenljivke, drop = FALSE]
     
     # preverimo, da je isto število kategorij v obeh bazah
     levels1 <- lapply(stevilske_spremenljivke, function(x) attr(baza1_na[[x]], "labels", exact = TRUE))
@@ -1115,8 +1107,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   }
   
   if(warning_counter == FALSE){
-    writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 1,
-              x = "Ni opozoril")
+    removeWorksheet(wb = wb, sheet = "Opozorila")
   }
 
   # shranimo excel datoteko

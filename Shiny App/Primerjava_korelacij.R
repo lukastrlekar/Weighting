@@ -603,8 +603,7 @@ izvoz_excel_korelacije <- function(baza1 = NULL,
   }
   
   if(warning_counter == FALSE){
-    writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 1,
-              x = "Ni opozoril")
+    removeWorksheet(wb = wb, sheet = "Opozorila")
   }
   
   saveWorkbook(wb = wb, file = file, overwrite = TRUE) 
