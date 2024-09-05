@@ -149,8 +149,20 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
             # primerjave povprečij s skupnim povprečjem
             # https://stackoverflow.com/questions/72843411/one-way-anova-using-the-survey-package-in-r
             survey_design <- svydesign(id = ~1, weights = as.formula(paste("~", utezi_spr)), data = temp_baza)
-            lm_model <- svyglm(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), design = survey_design)
-            glht_model_zac <- glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name)))
+            lm_model <- svyglm(as.formula(paste(stevilske_spremenljivke[i], "~", name)), design = survey_design)
+            
+            # glht_model_zac <- glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name)))
+            # ta način ni OK, ker je matrika kontrastov na neuteženih N in ne pride pravilno
+            # zato treba ročno pripraviti matriko kontrastov, kjer se upošteva uteži
+            n_contr <- vapply(levels(temp_baza[[name]]), 
+                              function(whichpart) {
+                                tmp_df <- temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), ]
+                                sum(tmp_df[[utezi_spr]][tmp_df[[name]] == whichpart], na.rm = TRUE)
+                              }, FUN.VALUE = numeric(1), USE.NAMES = TRUE)
+            
+            contr_mat <- contrMat(n_contr, type = "GrandMean")
+            contr_mat[,1] <- 0
+            glht_model_zac <- glht(lm_model, linfct = contr_mat)
             
             glht_model <- summary(glht_model_zac)
             
@@ -176,11 +188,12 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
             f_test <- oneway.test(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), data = temp_baza, var.equal = FALSE)
             
             # primerjave povprečij s skupnim povprečjem
-            model <- SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]),],
-                                 grp = name,
-                                 resp = stevilske_spremenljivke[i],
-                                 type = "GrandMean",
-                                 covar.equal = FALSE)
+            # uporabimo pristop computation of group-specific variance estimates - approach is more robust in the presence of small sample sizes compared to sandwich variance estimation
+            model <- SimComp::SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]),],
+                                          grp = name,
+                                          resp = stevilske_spremenljivke[i],
+                                          type = "GrandMean",
+                                          covar.equal = FALSE)
             
             temp_p[rows, i] <- as.vector(model$p.val.adj)
             
@@ -192,7 +205,6 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
             temp_anova_p_vrednosti[[i]] <- f_test$p.value
             
             # lm_model <- lm(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), data = temp_baza)
-            # sum_lm_model <- summary(lm_model)
             # glht_model <- summary(glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name))))
           }
           
@@ -456,27 +468,27 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 startCol = 1, startRow = 2)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +20 %",
+                x = "Visoka pozitivna (> 20 %)",
                 startCol = 1, startRow = 3)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +10 %",
+                x = "Zmerna pozitivna (10 % – 20 %)",
                 startCol = 1, startRow = 4)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +5 %",
+                x = "Šibka pozitivna (5 % – 10 %)",
                 startCol = 1, startRow = 5)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -5 %",
+                x = "Šibka negativna (-5 % – -10 %) ",
                 startCol = 1, startRow = 6)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -10 %",
+                x = "Zmerna negativna (-10 % – -20 %)",
                 startCol = 1, startRow = 7)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -20 %",
+                x = "Visoka negativna (< -20 %)",
                 startCol = 1, startRow = 8)
       
       addStyle(wb = wb, sheet = sheet_name,
@@ -1168,27 +1180,27 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 startCol = 1, startRow = 2)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +20 %",
+                x = "Visoka pozitivna (> 20 %)",
                 startCol = 1, startRow = 3)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +10 %",
+                x = "Zmerna pozitivna (10 % – 20 %)",
                 startCol = 1, startRow = 4)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "> +5 %",
+                x = "Šibka pozitivna (5 % – 10 %)",
                 startCol = 1, startRow = 5)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -5 %",
+                x = "Šibka negativna (-5 % – -10 %) ",
                 startCol = 1, startRow = 6)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -10 %",
+                x = "Zmerna negativna (-10 % – -20 %)",
                 startCol = 1, startRow = 7)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "< -20 %",
+                x = "Visoka negativna (< -20 %)",
                 startCol = 1, startRow = 8)
       
       addStyle(wb = wb, sheet = sheet_name,
