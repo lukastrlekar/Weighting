@@ -1,6 +1,6 @@
-# Skripta za primerjavo neuteženih in uteženih povprečji, deležev in korelacij iz dveh SPSS baz, primerjavo celotnega vzorca s podvzorcem in razbitje
+# Aplikacija za primerjavo neuteženih in uteženih povprečji, deležev in korelacij iz dveh SPSS baz, primerjavo celotnega vzorca s podvzorcem in razbitje
 
-Pred izvedbo analiz koda preveri, da so imena izbranih spremenljivk enaka v obeh bazah in, da so enake labele kategorij. V primeru, da ne, se izpišejo opozorila v prvi Excel zavihek. 
+Pred izvedbo analiz se avtomatsko preveri, da so imena izbranih spremenljivk enaka v obeh bazah in, da so enake labele kategorij. V primeru, da ne, se izpišejo opozorila v prvi Excel zavihek. 
 
 ## Shiny aplikacija
 

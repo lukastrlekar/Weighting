@@ -2,6 +2,13 @@
 
 # any(class(survey_design) %in% "survey.design") - dodaj survey design in možnost izračuna SE 
 
+# TODO Q164 Regija_vzorec Welcj ANOVA NaN in results may be dubious pr primerjavi ind. povprečij - določene skupine imajo ničelno var
+# potrebno poseben simbol pri teh
+#Robust tests of equality of means cannot be performed for Q164 because at least one group has 0 variance.	
+# ALI Skupno povprečje veljavnih skupin (N > 1 & var > 0)
+# in se naredi . pri vseh skupinah kjer var = 0
+
+
 
 # svyglm že privzeto izračuna heteroscedasticity robust standard errors (okvirno HC0)
 # https://stats.stackexchange.com/questions/57107/use-of-weights-in-svyglm-vs-glm
@@ -146,36 +153,41 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                                                                 w = temp_baza[!is.na(temp_baza[[name]]), utezi_spr, drop = TRUE],
                                                                 na.rm = TRUE)
             
-            # primerjave povprečij s skupnim povprečjem
-            # https://stackoverflow.com/questions/72843411/one-way-anova-using-the-survey-package-in-r
-            survey_design <- svydesign(id = ~1, weights = as.formula(paste("~", utezi_spr)), data = temp_baza)
-            lm_model <- svyglm(as.formula(paste(stevilske_spremenljivke[i], "~", name)), design = survey_design)
-            
-            # glht_model_zac <- glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name)))
-            # ta način ni OK, ker je matrika kontrastov na neuteženih N in ne pride pravilno
-            # zato treba ročno pripraviti matriko kontrastov, kjer se upošteva uteži
-            n_contr <- vapply(levels(temp_baza[[name]]), 
-                              function(whichpart) {
-                                tmp_df <- temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), ]
-                                sum(tmp_df[[utezi_spr]][tmp_df[[name]] == whichpart], na.rm = TRUE)
-                              }, FUN.VALUE = numeric(1), USE.NAMES = TRUE)
-            
-            contr_mat <- contrMat(n_contr, type = "GrandMean")
-            contr_mat[,1] <- 0
-            glht_model_zac <- glht(lm_model, linfct = contr_mat)
-            
-            glht_model <- summary(glht_model_zac)
-            
-            f_test <- summary(glht_model_zac, test = Ftest()) # v tem primeru (GrandMean contrasts) je to enako rezultati pri regTermTest
-
-            temp_p[rows, i] <- as.vector(glht_model$test$pvalues)
-            
-            temp_f_vrednosti[[i]] <- paste0("F(", f_test$test$df[1L],
-                                            ", ", f_test$test$df[2L], ") = ",
-                                            round(f_test$test$fstat[1L], 2),
-                                            weights::starmaker(f_test$test$pvalue[1L]))
-            
-            temp_anova_p_vrednosti[[i]] <- f_test$test$pvalue[1L]
+            if(length(rows) > 1){
+              # primerjave povprečij s skupnim povprečjem
+              # https://stackoverflow.com/questions/72843411/one-way-anova-using-the-survey-package-in-r
+              survey_design <- svydesign(id = ~1, weights = as.formula(paste("~", utezi_spr)), data = temp_baza)
+              lm_model <- svyglm(as.formula(paste(stevilske_spremenljivke[i], "~", name)), design = survey_design)
+              
+              # glht_model_zac <- glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name)))
+              # ta način ni OK, ker je matrika kontrastov na neuteženih N in ne pride pravilno
+              # zato treba ročno pripraviti matriko kontrastov, kjer se upošteva uteži
+              n_contr <- vapply(levels(temp_baza[[name]]), 
+                                function(whichpart) {
+                                  tmp_df <- temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), ]
+                                  sum(tmp_df[[utezi_spr]][tmp_df[[name]] == whichpart], na.rm = TRUE)
+                                }, FUN.VALUE = numeric(1), USE.NAMES = TRUE)
+              
+              contr_mat <- contrMat(n_contr, type = "GrandMean")
+              contr_mat[,1] <- 0
+              glht_model_zac <- glht(lm_model, linfct = contr_mat)
+              
+              glht_model <- summary(glht_model_zac)
+              
+              f_test <- summary(glht_model_zac, test = Ftest()) # v tem primeru (GrandMean contrasts) je to enako rezultati pri regTermTest
+              
+              temp_p[rows, i] <- as.vector(glht_model$test$pvalues)
+              
+              temp_f_vrednosti[[i]] <- paste0("F(", f_test$test$df[1L],
+                                              ", ", f_test$test$df[2L], ") = ",
+                                              round(f_test$test$fstat[1L], 2),
+                                              weights::starmaker(f_test$test$pvalue[1L]))
+              
+              temp_anova_p_vrednosti[[i]] <- f_test$test$pvalue[1L]
+            } else {
+              temp_f_vrednosti[[i]] <- NA
+              temp_anova_p_vrednosti[[i]] <- NA
+            }
 
           } else { # neuteženi podatki
             
@@ -184,25 +196,32 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
             # skupno povprečje
             temp_df[nrow(temp_df), stolpci[i]] <- mean(temp_baza[!is.na(temp_baza[[name]]), stevilske_spremenljivke[i], drop = TRUE], na.rm = TRUE)
             
-            # oneway ANOVA
-            f_test <- oneway.test(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), data = temp_baza, var.equal = FALSE)
-            
-            # primerjave povprečij s skupnim povprečjem
-            # uporabimo pristop computation of group-specific variance estimates - approach is more robust in the presence of small sample sizes compared to sandwich variance estimation
-            model <- SimComp::SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]),],
-                                          grp = name,
-                                          resp = stevilske_spremenljivke[i],
-                                          type = "GrandMean",
-                                          covar.equal = FALSE)
-            
-            temp_p[rows, i] <- as.vector(model$p.val.adj)
-            
-            temp_f_vrednosti[[i]] <- paste0("F(", round(f_test$parameter[1L]),
-                                            ", ", round(f_test$parameter[2L]), ") = ",
-                                            round(f_test$statistic[1L], 2),
-                                            weights::starmaker(f_test$p.value))
-            
-            temp_anova_p_vrednosti[[i]] <- f_test$p.value
+            if(length(rows) > 1){
+              # oneway ANOVA
+              f_test <- oneway.test(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), data = temp_baza, var.equal = FALSE)
+              
+              # primerjave povprečij s skupnim povprečjem
+              # uporabimo pristop 'computation of group-specific variance estimates - approach is more robust in the presence of small sample sizes compared to sandwich variance estimation'
+              model <- SimComp::SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]),],
+                                            grp = name,
+                                            resp = stevilske_spremenljivke[i],
+                                            type = "GrandMean",
+                                            covar.equal = FALSE)
+              
+              temp_p[rows, i] <- as.vector(model$p.val.adj)
+              
+              temp_f_vrednosti[[i]] <- ifelse(is.na(f_test$p.value),
+                                              NA,
+                                              paste0("F(", round(f_test$parameter[1L]),
+                                                     ", ", round(f_test$parameter[2L]), ") = ",
+                                                     round(f_test$statistic[1L], 2),
+                                                     weights::starmaker(f_test$p.value)))
+              
+              temp_anova_p_vrednosti[[i]] <- f_test$p.value
+            } else {
+              temp_f_vrednosti[[i]] <- NA
+              temp_anova_p_vrednosti[[i]] <- NA
+            }
             
             # lm_model <- lm(as.formula(paste0(stevilske_spremenljivke[i], "~", name)), data = temp_baza)
             # glht_model <- summary(glht(lm_model, linfct = do.call(mcp, setNames(list("GrandMean"), name))))
@@ -274,7 +293,10 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                   borders = "surrounding")
         
         writeData(wb = wb, sheet = sheet_name,
-                  x = paste(names(list_razbitje)[i], "-", var_label(baza1[[names(list_razbitje[i])]])),
+                  x = paste(names(list_razbitje)[i], 
+                            ifelse(is.null(var_label(baza1[[names(list_razbitje[i])]])),
+                                   "",
+                                   paste("-", var_label(baza1[[names(list_razbitje[i])]])))),
                   startCol = 1, startRow = 16 + vsota[i],
                   borders = "surrounding")
         
@@ -309,7 +331,10 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       
       for(i in seq_along(stevilske_spremenljivke)){
         writeData(wb = wb, sheet = sheet_name,
-                  x = paste(stevilske_spremenljivke[i], "-", var_label(baza1[[stevilske_spremenljivke[i]]])),
+                  x = paste(stevilske_spremenljivke[i], 
+                            ifelse(is.null(var_label(baza1[[stevilske_spremenljivke[i]]])),
+                                   "",
+                                   paste("-", var_label(baza1[[stevilske_spremenljivke[i]]])))),
                   startCol = stolpci[i], startRow = 12, borders = "surrounding")
         
         labele <- attr(x = baza1[[stevilske_spremenljivke[i]]], which = "labels", exact = TRUE)
@@ -703,10 +728,12 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     }
     
     writeData(wb = wb, sheet = "Povzetek",
-              x = cbind(c(paste("Št. skupnih primerjav povprečij (ANOVA):", length(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE))),
+              x = cbind(c(paste("Št. skupnih primerjav povprečij (ANOVA): neuteženi podatki:",
+                                sum(!is.na(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE))),
+                                ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(!is.na(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE)))))),
                           paste("Od tega statistično značilne primerjave (p < 0.05, vsaj eno povprečje je stat. značilno različno od drugih): neuteženi podatki:",
-                                sum(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE) < 0.05),
-                                ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE) < 0.05)), "")))),
+                                sum(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE) < 0.05, na.rm = TRUE),
+                                ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE) < 0.05, na.rm = TRUE)), "")))),
               startCol = 1, startRow = 10, rowNames = FALSE, colNames = FALSE)
     
     writeData(wb = wb, sheet = "Povzetek",
@@ -777,13 +804,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     # funkcija za izračun Cramer V koeficienta
     # cramer V je ustrezno računati tudi na uteženih podatkih
     # https://stats.stackexchange.com/questions/69661/cram%C3%A9rs-v-on-rao-scott-adjusted-pearson-chi2
-    # svycramerV<-function(formula,design,...){
-    #   tbl<-svytable(formula,design,...)
-    #   chisq<-chisq.test(tbl, correct=FALSE)$statistic
-    #   N<-sum(tbl)
-    #   V<-chisq/N/min(dim(tbl)-1)
-    #   sqrt(V)
-    # }
+
     cramersv <- function(x) {
       stat <- as.numeric(x[["statistic"]])
       n <- sum(x[["observed"]])
@@ -818,32 +839,37 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       temp_baza[[spr_razbitje]] <- droplevels(as_factor(temp_baza[[spr_razbitje]]))
       temp_baza[[nominalna_spr]] <- droplevels(as_factor(temp_baza[[nominalna_spr]]))
       
-      if(use_weights){
-        temp_baza[[utezi_spr]] <- temp_baza[[utezi_spr]]/mean(temp_baza[[utezi_spr]])
+      if ((nlevels(temp_baza[[spr_razbitje]]) >= 2L) && (nlevels(temp_baza[[nominalna_spr]]) >= 2L)){
         
-        survey_design <- svydesign(id = ~1, weights = as.formula(paste0("~", utezi_spr)), data = temp_baza)
-        temp_table <- svytable(as.formula(paste("~", spr_razbitje, "+", nominalna_spr)),
-                               design = survey_design)
-        
-        # ker so uteži normirane so vse komponente enake, le p-vrednost je drugačna
-        hi_test <- chisq.test(temp_table, correct = FALSE)
-        
-        p_vrednost <- tryCatch({
-          # Rao-Scott hi-kvadrat
-          # The Rao-Scott tests have been shown to have better control of Type I error than the Wald and adjWald tests when the number of design degrees of freedom is small
-          # but they may have lower power.
-          # https://stats.stackexchange.com/questions/610528/svychisq-with-statistic-chisq-vs-statistic-adjwald
-          summary(temp_table, statistic = "Chisq")$statistic$p.value
-        }, error = function(e){
-          p.value = NA
-        })
-        
-        hi_test$p.value <- p_vrednost
+        if (use_weights){
+          temp_baza[[utezi_spr]] <- temp_baza[[utezi_spr]]/mean(temp_baza[[utezi_spr]])
+          
+          survey_design <- svydesign(id = ~1, weights = as.formula(paste0("~", utezi_spr)), data = temp_baza)
+          temp_table <- svytable(as.formula(paste("~", spr_razbitje, "+", nominalna_spr)),
+                                 design = survey_design)
+          
+          # ker so uteži normirane so vse komponente enake, le p-vrednost je drugačna
+          hi_test <- chisq.test(temp_table, correct = FALSE)
+          
+          p_vrednost <- tryCatch({
+            # Rao-Scott hi-kvadrat
+            # The Rao-Scott tests have been shown to have better control of Type I error than the Wald and adjWald tests when the number of design degrees of freedom is small
+            # but they may have lower power.
+            # https://stats.stackexchange.com/questions/610528/svychisq-with-statistic-chisq-vs-statistic-adjwald
+            summary(temp_table, statistic = "Chisq")$statistic$p.value
+          }, error = function(e){
+            p.value = NA
+          })
+          
+          hi_test$p.value <- p_vrednost
+        } else {
+          # hi kvadrat test
+          hi_test <- chisq.test(temp_baza[[spr_razbitje]], temp_baza[[nominalna_spr]], correct = FALSE)
+          
+          temp_table <- hi_test$observed
+        }
       } else {
-        # hi kvadrat test
-        hi_test <- chisq.test(temp_baza[[spr_razbitje]], temp_baza[[nominalna_spr]], correct = FALSE)
-        
-        temp_table <- hi_test$observed
+        temp_table <- table(temp_baza[[spr_razbitje]], temp_baza[[nominalna_spr]])
       }
       
       temp_df <- as.data.frame(matrix(NA, nrow = (nrow(temp_table) * 3) + 2, ncol = ncol(temp_table) + 3))
@@ -869,7 +895,11 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       # prilagojeni standardizirani reziduali
       res_rows <- c(seq(3, by = 3, length.out = nrow(temp_table)))
       res_cols <- c(1, 2, ncol(temp_df))
-      temp_df[res_rows, -res_cols] <- round(hi_test$stdres, 2)
+      temp_df[res_rows, -res_cols] <- tryCatch({
+        round(hi_test$stdres, 2)},
+        error = function(e){
+          NA
+        })
       
       temp_df2 <- temp_df[res_rows, -res_cols]
       
@@ -905,22 +935,28 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
         paste(temp_df2[abs(temp_df2) >= 3.29], "***")
       
       # Cramerjev koeficient asociiranosti V
-      cramerV <- cramersv(hi_test)
+      cramerV <- tryCatch({cramersv(hi_test)},
+                          error = function(e){
+                            NA})
       
       # predpostavka X2: vsaj 80% teoretičnih frekvenc >= 5 in nobena celica nima < 1
-      opozorilo <- (mean(hi_test$expected < 5, na.rm = TRUE) >= 0.2) || (min(hi_test$expected, na.rm = TRUE) < 1)
+      opozorilo <- tryCatch({
+        (mean(hi_test$expected < 5, na.rm = TRUE) >= 0.2) || (min(hi_test$expected, na.rm = TRUE) < 1)},
+        error = function(e){
+          FALSE})
       
       list(temp_df = temp_df,
            temp_df_del = temp_df_del, # relativne razlike
            temp_df_res = temp_df2, # std. reziduali
-           chi_p_value = hi_test$p.value,
+           chi_p_value = tryCatch({hi_test$p.value}, error = function(e){NA}),
            cramerV = cramerV,
            opozorilo = opozorilo,
-           besedilo = paste0(ifelse(use_weights, "X2 (Rao-Scott) = ", "X2 = "), round(hi_test$statistic[[1]], 2),
-                             ", p = ", paste0(round(hi_test$p.value, 3)),
-                             ifelse(is.na(hi_test$p.value), "", weights::starmaker(hi_test$p.value)),
-                             ifelse(opozorilo && !is.na(hi_test$p.value), " (!)", ""),
-                             ", Cramer V = ", round(cramerV, 3)))
+           besedilo = tryCatch({paste0(ifelse(use_weights, "X2 (Rao-Scott) = ", "X2 = "), round(hi_test$statistic[[1]], 2),
+                                       ", p = ", paste0(round(hi_test$p.value, 3)),
+                                       ifelse(is.na(hi_test$p.value), "", weights::starmaker(hi_test$p.value)),
+                                       ifelse(opozorilo && !is.na(hi_test$p.value), " (!)", ""),
+                                       ", Cramer V = ", round(cramerV, 3))},
+                               error = function(e){""}))
     }
     
     razbitje_write_excel_nom <- function(list_razbitje_nom,
