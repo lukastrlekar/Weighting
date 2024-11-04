@@ -2,14 +2,6 @@
 
 # any(class(survey_design) %in% "survey.design") - dodaj survey design in možnost izračuna SE 
 
-# TODO Q164 Regija_vzorec Welcj ANOVA NaN in results may be dubious pr primerjavi ind. povprečij - določene skupine imajo ničelno var
-# potrebno poseben simbol pri teh
-#Robust tests of equality of means cannot be performed for Q164 because at least one group has 0 variance.	
-# ALI Skupno povprečje veljavnih skupin (N > 1 & var > 0)
-# in se naredi . pri vseh skupinah kjer var = 0
-
-
-
 # svyglm že privzeto izračuna heteroscedasticity robust standard errors (okvirno HC0)
 # https://stats.stackexchange.com/questions/57107/use-of-weights-in-svyglm-vs-glm
 # https://stats.stackexchange.com/questions/333930/equivalence-of-svyglm-and-glm-for-simple-random-surveys
@@ -118,7 +110,8 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
         
         temp_df <- data.frame(matrix(NA, nrow = length(kat) + 1, ncol = (length(stevilske_spremenljivke) * 2) + 1))
         
-        temp_df[[1]] <- c(kat, "Skupno povprečje veljavnih skupin (N > 1)")
+        # temp_df[[1]] <- c(kat, "Skupno povprečje veljavnih skupin (N > 1)")
+        temp_df[[1]] <- c(kat, "Skupno povprečje veljavnih skupin (var > 0)")
         
         # statistična značilnost
         temp_p <- matrix(1, nrow = nrow(temp_df) - 1, ncol = length(stolpci))
@@ -132,11 +125,17 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           n_sk <- tapply(temp_baza[[stevilske_spremenljivke[i]]], temp_baza[[name]], function(x) sum(!is.na(x)), simplify = TRUE)
           temp_df[-nrow(temp_df), stolpci[i] + 1] <- as.vector(n_sk)
           
-          rows <- names(n_sk)[which(n_sk > 1)]
+          # rows <- names(n_sk)[which(n_sk > 1)]
+          # rows <- match(rows, kat)
+          
+          var_sk <- tapply(temp_baza[[stevilske_spremenljivke[i]]], temp_baza[[name]], function(x) (var(x, na.rm = TRUE)), simplify = TRUE)
+          var_sk[is.na(var_sk)] <- 0
+          rows <- names(var_sk)[var_sk > 0]
           rows <- match(rows, kat)
           
-          # obdržimo samo skupine, kjer sta vsaj 2 enoti
-          temp_baza <- temp_baza[!temp_baza[[name]] %in% names(n_sk)[which(n_sk <= 1)], ]
+          # obdržimo samo skupine, kjer je var > 0
+          # temp_baza <- temp_baza[!temp_baza[[name]] %in% names(n_sk)[which(n_sk <= 1)], ]
+          temp_baza <- temp_baza[!temp_baza[[name]] %in% names(var_sk)[var_sk == 0], ]
           temp_baza[[name]] <- droplevels(temp_baza[[name]])
           temp_baza <- as.data.frame(temp_baza)
           
@@ -730,7 +729,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     writeData(wb = wb, sheet = "Povzetek",
               x = cbind(c(paste("Št. skupnih primerjav povprečij (ANOVA): neuteženi podatki:",
                                 sum(!is.na(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE))),
-                                ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(!is.na(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE)))))),
+                                ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(!is.na(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE)))), "")),
                           paste("Od tega statistično značilne primerjave (p < 0.05, vsaj eno povprečje je stat. značilno različno od drugih): neuteženi podatki:",
                                 sum(unlist(razbitje_list_neutezeno$anova_p_vrednosti, use.names = FALSE) < 0.05, na.rm = TRUE),
                                 ifelse(!is.null(utezi_spr), paste0("; uteženi podatki: ", sum(unlist(razbitje_list_utezeno$anova_p_vrednosti, use.names = FALSE) < 0.05, na.rm = TRUE)), "")))),
