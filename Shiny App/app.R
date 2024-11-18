@@ -272,15 +272,35 @@ server <- function(input, output, session) {
   podatki1 <- reactive({
     req(input$upload_baza1)
     
-    labelled::user_na_to_na(haven::read_spss(file = input$upload_baza1$datapath,
-                                             user_na = TRUE))
+    df1 <- try(labelled::user_na_to_na(haven::read_spss(file = input$upload_baza1$datapath,
+                                                        user_na = TRUE)),
+               silent = TRUE)
+    
+    if(!is.data.frame(df1)){
+      # issue https://github.com/tidyverse/haven/issues/615
+      df1 <- try(labelled::user_na_to_na(haven::read_sav(file = input$upload_baza1$datapath,
+                                                         user_na = TRUE,
+                                                         encoding = "latin1")),
+                 silent = TRUE)
+    }
+    return(df1)
   })
   
   podatki2 <- reactive({
     req(input$upload_baza2)
     
-    labelled::user_na_to_na(haven::read_spss(file = input$upload_baza2$datapath,
-                                             user_na = TRUE))
+    df2 <- try(labelled::user_na_to_na(haven::read_spss(file = input$upload_baza2$datapath,
+                                                        user_na = TRUE)),
+               silent = TRUE)
+    
+    if(!is.data.frame(df2)){
+      # issue https://github.com/tidyverse/haven/issues/615
+      df2 <- try(labelled::user_na_to_na(haven::read_sav(file = input$upload_baza2$datapath,
+                                                         user_na = TRUE,
+                                                         encoding = "latin1")),
+                 silent = TRUE)
+    }
+    return(df2)
   })
   
   observe({
