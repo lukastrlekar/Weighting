@@ -219,14 +219,6 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     stop("Uteži v 2. bazi vsebujejo manjkajoče vrednosti.")
   }
   
-  # if(!is.null(stevilske_spremenljivke) && !is.character(stevilske_spremenljivke)){
-  #   stop("Podane številske spremenljivke morajo biti v obliki character vector.")
-  # }
-  # 
-  # if(!is.null(nominalne_spremenljivke) && !is.character(nominalne_spremenljivke)){
-  #   stop("Podane nominalne spremenljivke morajo biti v obliki character vector.")
-  # }
-  
   wb <- createWorkbook()
   
   addWorksheet(wb = wb, sheetName = "Opozorila", gridLines = FALSE)
@@ -234,6 +226,9 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   addWorksheet(wb = wb, sheetName = "Povzetek", gridLines = FALSE)
   
   warning_counter <- FALSE
+  
+  st_spr_ind <- FALSE
+  nom_spr_ind <- FALSE
   
   if(!is.null(stevilske_spremenljivke)){
     # Številske spremenljivke -------------------------------------------------
@@ -319,6 +314,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                                 },
                                               FUN.VALUE = character(1)))
     if(nrow(tabela_st) > 0){
+      
+      st_spr_ind <- TRUE
       
       # tabela_st[["Min"]] <- pmin(sapply(baza1_na, min, na.rm = TRUE),
       #                            sapply(baza2_na, min, na.rm = TRUE))
@@ -461,13 +458,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       }
       
       ## Izvoz excel -------------------------------------------------------------
-      
+
       # povzetek za številske spr.
       merge_tabela_st <- cbind(tabela_st, tabela_st_u)
       frekvence_rel_razlike_neutezene <- count_rel_diff(vec = merge_tabela_st[[10]], p_vec = merge_tabela_st[[12]])
       frekvence_rel_razlike_utezene <- count_rel_diff(vec = merge_tabela_st[[17]], p_vec = merge_tabela_st[[19]])
       
-      tbl_st <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+      tbl_st <- data.frame("Relativne razlike (RB)" = c("RB > 20%", "10% < RB ≤ 20%", "5% ≤ RB ≤ 10%", "RB < 5%"),
                            # neutežene statistike
                            "f" = frekvence_rel_razlike_neutezene$sums,
                            "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
@@ -818,6 +815,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     if(length(factor_tables) > 0){
       
+      nom_spr_ind <- TRUE
+      
       # skupno število kategorij
       st_kategorij <- sum(sapply(factor_tables, function(x) sum(x[[1]] != "Skupaj")))
       
@@ -876,7 +875,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[[2]])
       frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[[2]])
       
-      tbl_nom <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+      tbl_nom <- data.frame("Relativne razlike (RB)" = c("RB > 20%", "10% < RB ≤ 20%", "5% ≤ RB ≤ 10%", "RB < 5%"),
                             # neutežene statistike
                             "f" = frekvence_rel_razlike_neutezene_nom$sums,
                             "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
@@ -1110,6 +1109,269 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     removeWorksheet(wb = wb, sheet = "Opozorila")
   }
 
+  
+  # skupen povzetek
+  povzetek_tbl <- data.frame("Spremenljivke" = NA,
+                             "Št. vseh spremenljivk" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             "f" = NA,
+                             "%" = NA,
+                             check.names = FALSE)
+  
+  if(st_spr_ind){
+    # številske spremenljivke
+    povzetek_tbl_st <- povzetek_tbl
+    
+    povzetek_tbl_st[,1] <- "Številske"
+    
+    # skupno št. spremenljivk
+    povzetek_tbl_st[,2] <- sum(frekvence_rel_razlike_neutezene$sums)
+    
+    # neuteženi podatki
+    # število stat. značilnih spremenljivk
+    povzetek_tbl_st[,3] <- sum(frekvence_rel_razlike_neutezene$p_sums)
+    povzetek_tbl_st[,4] <- povzetek_tbl_st[,3]/povzetek_tbl_st[,2]
+    
+    # frekvenca spr. z RB >20, >10, >5
+    povzetek_tbl_st[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene$p_sums[-length(frekvence_rel_razlike_neutezene$p_sums)])
+    povzetek_tbl_st[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene$p_sums[-length(frekvence_rel_razlike_neutezene$p_sums)])/povzetek_tbl_st[,2]
+    
+    # uteženi podatki
+    # število stat. značilnih spremenljivk
+    povzetek_tbl_st[,11] <- sum(frekvence_rel_razlike_utezene$p_sums)
+    povzetek_tbl_st[,12] <- povzetek_tbl_st[,11]/povzetek_tbl_st[,2]
+    
+    # frekvenca spr. z RB >20, >10, >5
+    povzetek_tbl_st[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)])
+    povzetek_tbl_st[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)])/povzetek_tbl_st[,2]
+    
+  } else {
+    povzetek_tbl_st <- povzetek_tbl[-1,]
+  }
+  
+  if(nom_spr_ind){
+    # nominalne spremenljivke
+    povzetek_tbl_nom <- povzetek_tbl
+    
+    povzetek_tbl_nom[,1] <- "Opisne"
+    
+    # skupno št. kategorij
+    povzetek_tbl_nom[,2] <- st_kategorij
+    
+    # neuteženi podatki
+    # število stat. značilnih kategorij
+    povzetek_tbl_nom[,3] <- sum(frekvence_rel_razlike_neutezene_nom$p_sums)
+    povzetek_tbl_nom[,4] <- povzetek_tbl_nom[,3]/povzetek_tbl_nom[,2]
+    
+    # frekvenca kat. z RB >20, >10, >5
+    povzetek_tbl_nom[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene_nom$p_sums[-length(frekvence_rel_razlike_neutezene_nom$p_sums)])
+    povzetek_tbl_nom[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene_nom$p_sums[-length(frekvence_rel_razlike_neutezene_nom$p_sums)])/povzetek_tbl_nom[,2]
+    
+    # uteženi podatki
+    # število stat. značilnih kategorij
+    povzetek_tbl_nom[,11] <- sum(frekvence_rel_razlike_utezene_nom$p_sums)
+    povzetek_tbl_nom[,12] <- povzetek_tbl_nom[,11]/povzetek_tbl_nom[,2]
+    
+    # frekvenca kat. z RB >20, >10, >5
+    povzetek_tbl_nom[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene_nom$p_sums[-length(frekvence_rel_razlike_utezene_nom$p_sums)])
+    povzetek_tbl_nom[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene_nom$p_sums[-length(frekvence_rel_razlike_utezene_nom$p_sums)])/povzetek_tbl_nom[,2]
+    
+  } else {
+    povzetek_tbl_nom <- povzetek_tbl[-1,]
+  }
+  
+  # končna tabela
+  povzetek_tbl_koncna <- rbind(povzetek_tbl_st, povzetek_tbl_nom)
+  
+  if(st_spr_ind && nom_spr_ind){
+    povzetek_tbl_koncna <- rbind(povzetek_tbl_koncna, povzetek_tbl)
+    
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),1] <- "Skupaj"
+    
+    # skupno št. spremenljivk
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),2])
+    
+    # neuteženi podatki
+    # skupno število stat. značilnih spremenljivk
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),3] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),3])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),4] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),3]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
+    
+    # skupna frekvenca spr. z RB >20, >10, >5
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(5,7,9)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(5,7,9)])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(6,8,10)] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(5,7,9)]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
+    
+    # uteženi podatki
+    # skupno število stat. značilnih spremenljivk
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),11] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),11])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),12] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),11]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
+    
+    # skupna frekvenca spr. z RB >20, >10, >5
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(13,15,17)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(13,15,17)])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(14,16,18)] <- frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)]/povzetek_tbl_st[,2]
+  }
+  
+  writeData(wb = wb,
+            sheet = "Povzetek",
+            x = povzetek_tbl_koncna,
+            borders = "all", startRow = 37, 
+            headerStyle = createStyle(textDecoration = "bold",
+                                      border = c("top", "bottom", "left", "right"),
+                                      halign = "center", valign = "center", wrapText = TRUE))
+  
+  # neuteženi podatki
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Spremenljivke",
+            startCol = 1, startRow = 35)
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 1, rows = 35:37)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = ifelse(nom_spr_ind, ifelse(st_spr_ind,
+                                           "Št. vseh spremenljivk/kategorij",
+                                           "Št. vseh kategorij"), 
+                       "Št. vseh spremenljivk"),
+            startCol = 2, startRow = 35)
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 2, rows = 35:37)
+  
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Stat. značilne (p < 0.05) razlike med ocenama",
+            startCol = 3, startRow = 35)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 3:4, rows = 35:36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "≥ 5 %",
+            startCol = 5, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 5:6, rows = 36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "> 10 %",
+            startCol = 7, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 7:8, rows = 36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "> 20 %",
+            startCol = 9, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 9:10, rows = 36)
+  
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Statistično značilna razlika in hkrati relativna razlika >",
+            startCol = 5, startRow = 35)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 5:10, rows = 35)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Neutežene statistike", startCol = 3, startRow = 34)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 3:10, rows = 34)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(fgFill = "#DAEEF3"), rows = 35:(35+2+nrow(povzetek_tbl_koncna)), cols = 3:10,
+           gridExpand = TRUE, stack = TRUE)
+  
+  # uteženi podatki
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Stat. značilne (p < 0.05) razlike med ocenama",
+            startCol = 11, startRow = 35)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 11:12, rows = 35:36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "≥ 5 %",
+            startCol = 13, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 13:14, rows = 36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "> 10 %",
+            startCol = 15, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 15:16, rows = 36)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "> 20 %",
+            startCol = 17, startRow = 36)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 17:18, rows = 36)
+  
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Statistično značilna razlika in hkrati relativna razlika >",
+            startCol = 13, startRow = 35)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 13:18, rows = 35)
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Utežene statistike", startCol = 11, startRow = 34)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 11:18, rows = 34)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(fgFill = "#FDE9D9"), rows = 35:(35+2+nrow(povzetek_tbl_koncna)), cols = 11:18,
+           gridExpand = TRUE, stack = TRUE)
+  
+  
+  writeData(wb = wb, sheet = "Povzetek",
+            x = "Skupni povzetek",
+            startCol = 3, startRow = 33)
+  
+  mergeCells(wb = wb, sheet = "Povzetek", cols = 3:18, rows = 33)
+  
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(textDecoration = "bold",
+                               halign = "center", valign = "center",
+                               fontSize = 12),
+           rows = 33:34, cols = 1:18,
+           gridExpand = TRUE, stack = TRUE)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(textDecoration = "bold",
+                               halign = "center", valign = "center",
+                               border = c("top", "bottom", "left", "right"),
+                               wrapText = TRUE),
+           rows = 35:36, cols = 1:18,
+           gridExpand = TRUE, stack = TRUE)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(numFmt = "0%"),
+           rows = 37:40, cols = c(4, 6, 8, 10, 12, 14, 16, 18),
+           gridExpand = TRUE, stack = TRUE)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(halign = "center"),
+           rows = 37:40, cols = 1:18,
+           gridExpand = TRUE, stack = TRUE)
+  
+  addStyle(wb = wb, sheet = "Povzetek",
+           style = createStyle(textDecoration = "bold"),
+           rows = 40, cols = 1:18,
+           gridExpand = TRUE, stack = TRUE)
+
+  setRowHeights(wb = wb, sheet = "Povzetek", rows = c(33:37), heights = c(20, 20, 40, 30, 30))
+  
   # shranimo excel datoteko
   saveWorkbook(wb = wb, file = file, overwrite = TRUE)
 }
+
+
+
+
+
