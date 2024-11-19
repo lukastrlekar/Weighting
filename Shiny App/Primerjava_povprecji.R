@@ -230,8 +230,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   st_spr_ind <- FALSE
   nom_spr_ind <- FALSE
   
+  # Številske spremenljivke -------------------------------------------------
   if(!is.null(stevilske_spremenljivke)){
-    # Številske spremenljivke -------------------------------------------------
     
     imena_st_1 <- names(baza1)[names(baza1) %in% stevilske_spremenljivke]
     imena_st_2 <- names(baza2)[names(baza2) %in% stevilske_spremenljivke]
@@ -639,8 +639,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     }
   }
   
+  # Nominalne spremenljivke -------------------------------------------------
   if(!is.null(nominalne_spremenljivke)){
-    # Nominalne spremenljivke -------------------------------------------------
 
     imena_nom_1 <- names(baza1)[names(baza1) %in% nominalne_spremenljivke]
     imena_nom_2 <- names(baza2)[names(baza2) %in% nominalne_spremenljivke]
@@ -1110,7 +1110,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   }
 
   
-  # skupen povzetek
+  #### skupen povzetek ####
   povzetek_tbl <- data.frame("Spremenljivke" = NA,
                              "Št. vseh spremenljivk" = NA,
                              "f" = NA,
@@ -1131,8 +1131,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                              "%" = NA,
                              check.names = FALSE)
   
+  # številske spremenljivke
   if(st_spr_ind){
-    # številske spremenljivke
     povzetek_tbl_st <- povzetek_tbl
     
     povzetek_tbl_st[,1] <- "Številske"
@@ -1146,8 +1146,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     povzetek_tbl_st[,4] <- povzetek_tbl_st[,3]/povzetek_tbl_st[,2]
     
     # frekvenca spr. z RB >20, >10, >5
-    povzetek_tbl_st[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene$p_sums[-length(frekvence_rel_razlike_neutezene$p_sums)])
-    povzetek_tbl_st[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene$p_sums[-length(frekvence_rel_razlike_neutezene$p_sums)])/povzetek_tbl_st[,2]
+    povzetek_tbl_st[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene$p_cumsums[-length(frekvence_rel_razlike_neutezene$p_cumsums)])
+    povzetek_tbl_st[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene$p_cumsums[-length(frekvence_rel_razlike_neutezene$p_cumsums)])/povzetek_tbl_st[,2]
     
     # uteženi podatki
     # število stat. značilnih spremenljivk
@@ -1155,15 +1155,15 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     povzetek_tbl_st[,12] <- povzetek_tbl_st[,11]/povzetek_tbl_st[,2]
     
     # frekvenca spr. z RB >20, >10, >5
-    povzetek_tbl_st[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)])
-    povzetek_tbl_st[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)])/povzetek_tbl_st[,2]
+    povzetek_tbl_st[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene$p_cumsums[-length(frekvence_rel_razlike_utezene$p_cumsums)])
+    povzetek_tbl_st[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene$p_cumsums[-length(frekvence_rel_razlike_utezene$p_cumsums)])/povzetek_tbl_st[,2]
     
   } else {
     povzetek_tbl_st <- povzetek_tbl[-1,]
   }
   
+  # nominalne spremenljivke
   if(nom_spr_ind){
-    # nominalne spremenljivke
     povzetek_tbl_nom <- povzetek_tbl
     
     povzetek_tbl_nom[,1] <- "Opisne"
@@ -1177,8 +1177,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     povzetek_tbl_nom[,4] <- povzetek_tbl_nom[,3]/povzetek_tbl_nom[,2]
     
     # frekvenca kat. z RB >20, >10, >5
-    povzetek_tbl_nom[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene_nom$p_sums[-length(frekvence_rel_razlike_neutezene_nom$p_sums)])
-    povzetek_tbl_nom[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene_nom$p_sums[-length(frekvence_rel_razlike_neutezene_nom$p_sums)])/povzetek_tbl_nom[,2]
+    povzetek_tbl_nom[,c(5,7,9)] <- rev(frekvence_rel_razlike_neutezene_nom$p_cumsums[-length(frekvence_rel_razlike_neutezene_nom$p_cumsums)])
+    povzetek_tbl_nom[,c(6,8,10)] <- rev(frekvence_rel_razlike_neutezene_nom$p_cumsums[-length(frekvence_rel_razlike_neutezene_nom$p_cumsums)])/povzetek_tbl_nom[,2]
     
     # uteženi podatki
     # število stat. značilnih kategorij
@@ -1186,8 +1186,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     povzetek_tbl_nom[,12] <- povzetek_tbl_nom[,11]/povzetek_tbl_nom[,2]
     
     # frekvenca kat. z RB >20, >10, >5
-    povzetek_tbl_nom[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene_nom$p_sums[-length(frekvence_rel_razlike_utezene_nom$p_sums)])
-    povzetek_tbl_nom[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene_nom$p_sums[-length(frekvence_rel_razlike_utezene_nom$p_sums)])/povzetek_tbl_nom[,2]
+    povzetek_tbl_nom[,c(13,15,17)] <- rev(frekvence_rel_razlike_utezene_nom$p_cumsums[-length(frekvence_rel_razlike_utezene_nom$p_cumsums)])
+    povzetek_tbl_nom[,c(14,16,18)] <- rev(frekvence_rel_razlike_utezene_nom$p_cumsums[-length(frekvence_rel_razlike_utezene_nom$p_cumsums)])/povzetek_tbl_nom[,2]
     
   } else {
     povzetek_tbl_nom <- povzetek_tbl[-1,]
