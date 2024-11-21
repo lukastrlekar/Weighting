@@ -43,7 +43,11 @@ ui <- fluidPage(
     column(12,
            checkboxInput(inputId = "checkbox_razbitje",
                          label = "Razbitje (analiza povprečij po skupinah kontrolnih spremenljivk za številske spremenljivke in dvodimenzionalne kontingenčne tabele za nominalne spremenljivke)",
-                         width = "100%"))),
+                         width = "100%")),
+    conditionalPanel(condition = "input.checkbox_razbitje == 1",
+                     column(12,
+                            p(strong("Opozorilo:"), "v primeru večjega števila izbranih opisnih spremenljivk (> 20) in hkrati tudi spremenljivk razbitja (> 10),
+                              lahko izvedba analiz in izvoz datoteke traja dlje časa (> 1 ura). Priporočamo lokalno uporabo, saj se pri aplikaciji na spletu po 15 minutah prekine povezava.")))),
   
   fluidRow(
     column(12,

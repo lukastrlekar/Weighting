@@ -80,7 +80,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     razbitje_spremenljivke <- razbitje_spremenljivke[!indeksi_spr]
   }
   
-  ### ŠTEVILSKE SPREMENLJIVKE
+  #### ŠTEVILSKE SPREMENLJIVKE ####
   if(length(stevilske_spremenljivke) >= 1 && length(razbitje_spremenljivke) >= 1){
     
     razbitje <- function(stevilske_spremenljivke,
@@ -781,7 +781,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     setRowHeights(wb = wb, sheet = "Povzetek", rows = 1:4, heights = c(20, 20, 25, 44))
   }
   
-  ### NOMINALNE SPREMENLJIVKE
+  #### NOMINALNE SPREMENLJIVKE ####
   
   # preverimo in odstranimo nominalne spremenljivke, ki so konstante ali imajo le NA vrednosti
   indeksi_nom <- vapply(nominalne_spremenljivke, function(x){
@@ -880,7 +880,9 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       temp_df[, 2] <- c(rep(c("N", "%", "Std. rez."), floor(nrow(temp_df)/3)), c("N", "%"))
       
       # kategorije odvisne nominalne spremenljivke
-      colnames(temp_df) <- c(paste(spr_razbitje, "-", var_label(baza1[[spr_razbitje]])),
+      colnames(temp_df) <- c(paste(spr_razbitje, ifelse(is.null(var_label(baza1[[spr_razbitje]])),
+                                                        "",
+                                                        paste("-", var_label(baza1[[spr_razbitje]])))),
                              "",
                              colnames(temp_table),
                              "Skupaj")
@@ -993,7 +995,9 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                     borders = "surrounding")
           
           writeData(wb = wb, sheet = sheet_name, startCol = 3, startRow = 11 + vsota_razbitje[[i]][j],
-                    x = paste(nominalne_spremenljivke[i], "-", var_label(baza1[[nominalne_spremenljivke[i]]])),
+                    x = paste(nominalne_spremenljivke[i], ifelse(is.null(var_label(baza1[[nominalne_spremenljivke[i]]])),
+                                                                 "",
+                                                                 paste("-", var_label(baza1[[nominalne_spremenljivke[i]]])))),
                     colNames = FALSE, rowNames = FALSE,
                     borders = "surrounding")
           
@@ -1487,3 +1491,6 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
   
   saveWorkbook(wb = wb, file = file, overwrite = TRUE)
 }
+
+
+
