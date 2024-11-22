@@ -1,17 +1,19 @@
-library(shiny)
-library(shinyWidgets)
-library(shinycssloaders)
-library(shinyjs)
-
-library(haven)
-library(labelled)
-library(weights)
-library(openxlsx)
-library(stringr)
-library(cocor)
-library(survey)
-library(multcomp)
-library(SimComp)
+suppressPackageStartupMessages({
+  library(shiny)
+  library(shinyWidgets)
+  library(shinycssloaders)
+  library(shinyjs)
+  
+  library(haven)
+  library(labelled)
+  library(weights)
+  library(openxlsx)
+  library(stringr)
+  library(cocor)
+  library(survey)
+  library(multcomp)
+  library(SimComp)
+})
 
 source("Primerjava_povprecji.R")
 source("Primerjava_korelacij.R")
@@ -46,7 +48,7 @@ ui <- fluidPage(
                          width = "100%")),
     conditionalPanel(condition = "input.checkbox_razbitje == 1",
                      column(12,
-                            p(strong("Opozorilo:"), "v primeru večjega števila izbranih opisnih spremenljivk (> 20) in hkrati tudi spremenljivk razbitja (> 10),
+                            p(strong("Opozorilo:"), "v primeru izbranega večjega števila opisnih spremenljivk (> 20) in hkrati tudi spremenljivk razbitja (> 10),
                               lahko izvedba analiz in izvoz datoteke traja dlje časa (> 1 ura). Priporočamo lokalno uporabo, saj se pri aplikaciji na spletu po 15 minutah prekine povezava.")))),
   
   fluidRow(
