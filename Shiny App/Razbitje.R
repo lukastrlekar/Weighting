@@ -110,7 +110,6 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
         
         temp_df <- data.frame(matrix(NA, nrow = length(kat) + 1, ncol = (length(stevilske_spremenljivke) * 2) + 1))
         
-        # temp_df[[1]] <- c(kat, "Skupno povprečje veljavnih skupin (N > 1)")
         temp_df[[1]] <- c(kat, "Skupno povprečje veljavnih skupin (var > 0)")
         
         # statistična značilnost
@@ -125,17 +124,15 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           n_sk <- tapply(temp_baza[[stevilske_spremenljivke[i]]], temp_baza[[name]], function(x) sum(!is.na(x)), simplify = TRUE)
           temp_df[-nrow(temp_df), stolpci[i] + 1] <- as.vector(n_sk)
           
-          # rows <- names(n_sk)[which(n_sk > 1)]
-          # rows <- match(rows, kat)
-          
+          # varianca skupin
           var_sk <- tapply(temp_baza[[stevilske_spremenljivke[i]]], temp_baza[[name]], function(x) (var(x, na.rm = TRUE)), simplify = TRUE)
           var_sk[is.na(var_sk)] <- 0
+          
           rows <- names(var_sk)[var_sk > 0]
           rows <- match(rows, kat)
           
           # obdržimo samo skupine, kjer je var > 0
-          # temp_baza <- temp_baza[!temp_baza[[name]] %in% names(n_sk)[which(n_sk <= 1)], ]
-          temp_baza <- temp_baza[!temp_baza[[name]] %in% names(var_sk)[var_sk == 0], ]
+          temp_baza <- temp_baza[!temp_baza[[name]] %in% names(var_sk)[var_sk == 0], , drop = FALSE]
           temp_baza[[name]] <- droplevels(temp_baza[[name]])
           temp_baza <- as.data.frame(temp_baza)
           
@@ -163,7 +160,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
               # zato treba ročno pripraviti matriko kontrastov, kjer se upošteva uteži
               n_contr <- vapply(levels(temp_baza[[name]]), 
                                 function(whichpart) {
-                                  tmp_df <- temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), ]
+                                  tmp_df <- temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), , drop = FALSE]
                                   sum(tmp_df[[utezi_spr]][tmp_df[[name]] == whichpart], na.rm = TRUE)
                                 }, FUN.VALUE = numeric(1), USE.NAMES = TRUE)
               
@@ -201,7 +198,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
               
               # primerjave povprečij s skupnim povprečjem
               # uporabimo pristop 'computation of group-specific variance estimates - approach is more robust in the presence of small sample sizes compared to sandwich variance estimation'
-              model <- SimComp::SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]),],
+              model <- SimComp::SimTestDiff(data = temp_baza[!is.na(temp_baza[[stevilske_spremenljivke[i]]]), , drop = FALSE],
                                             grp = name,
                                             resp = stevilske_spremenljivke[i],
                                             type = "GrandMean",
@@ -833,7 +830,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       temp_baza <- baza1[, c(utezi_spr, spr_razbitje, nominalna_spr), drop = FALSE]
       
       cases <- complete.cases(temp_baza[[spr_razbitje]], temp_baza[[nominalna_spr]])
-      temp_baza <- temp_baza[cases,]
+      temp_baza <- temp_baza[cases, , drop = FALSE]
       
       temp_baza[[spr_razbitje]] <- droplevels(as_factor(temp_baza[[spr_razbitje]]))
       temp_baza[[nominalna_spr]] <- droplevels(as_factor(temp_baza[[nominalna_spr]]))
@@ -902,10 +899,10 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           NA
         })
       
-      temp_df2 <- temp_df[res_rows, -res_cols]
+      temp_df2 <- temp_df[res_rows, -res_cols, drop = FALSE]
       
       # relativne razlike deležev
-      temp_df_del <- temp_df[c(seq(2, by = 3, length.out = nrow(temp_table)), nrow(temp_df)), -c(1,2)]
+      temp_df_del <- temp_df[c(seq(2, by = 3, length.out = nrow(temp_table)), nrow(temp_df)), -c(1,2), drop = FALSE]
       # temp_df_del[temp_df_del == 0] <- NA
       
       for(i in seq_len(ncol(temp_df_del))){
@@ -916,24 +913,26 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           paste0(round(temp_df[c(seq(2, by = 3, length.out = nrow(temp_table)), nrow(temp_df)), -c(1,2)][[i]] * 100, 1), "%")
       }
       
-      temp_df_del <- temp_df_del[-nrow(temp_df_del),-ncol(temp_df_del)]
+      temp_df_del <- temp_df_del[-nrow(temp_df_del),-ncol(temp_df_del), drop = FALSE]
       
-      # približna stat. značilnost rezidualov
-      # p < 0.1
-      temp_df[res_rows, -res_cols][abs(temp_df2) >= 1.64 & abs(temp_df2) < 1.96] <-
-        paste(temp_df2[abs(temp_df2) >= 1.64 & abs(temp_df2) < 1.96], "+")
-      
-      # p < 0.05
-      temp_df[res_rows, -res_cols][abs(temp_df2) >= 1.96 & abs(temp_df2) < 2.58] <-
-        paste(temp_df2[abs(temp_df2) >= 1.96 & abs(temp_df2) < 2.58], "*")
-      
-      # p < 0.01
-      temp_df[res_rows, -res_cols][abs(temp_df2) >= 2.58 & abs(temp_df2) < 3.29] <-
-        paste(temp_df2[abs(temp_df2) >= 2.58 & abs(temp_df2) < 3.29], "**")
-      
-      # p < 0.001
-      temp_df[res_rows, -res_cols][abs(temp_df2) >= 3.29] <-
-        paste(temp_df2[abs(temp_df2) >= 3.29], "***")
+      if(!all(is.na(temp_df2))) {
+        # približna stat. značilnost rezidualov
+        # p < 0.1
+        temp_df[res_rows, -res_cols][abs(temp_df2) >= 1.64 & abs(temp_df2) < 1.96] <-
+          paste(temp_df2[abs(temp_df2) >= 1.64 & abs(temp_df2) < 1.96], "+")
+        
+        # p < 0.05
+        temp_df[res_rows, -res_cols][abs(temp_df2) >= 1.96 & abs(temp_df2) < 2.58] <-
+          paste(temp_df2[abs(temp_df2) >= 1.96 & abs(temp_df2) < 2.58], "*")
+        
+        # p < 0.01
+        temp_df[res_rows, -res_cols][abs(temp_df2) >= 2.58 & abs(temp_df2) < 3.29] <-
+          paste(temp_df2[abs(temp_df2) >= 2.58 & abs(temp_df2) < 3.29], "**")
+        
+        # p < 0.001
+        temp_df[res_rows, -res_cols][abs(temp_df2) >= 3.29] <-
+          paste(temp_df2[abs(temp_df2) >= 3.29], "***")
+      }
       
       # Cramerjev koeficient asociiranosti V
       cramerV <- tryCatch({cramersv(hi_test)},
@@ -982,8 +981,8 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
       }
       
       for(i in seq_along(nominalne_spremenljivke)){
-        n_col_i <- c()
-        opozorilo_i <- c()
+        n_col_i <- numeric()
+        opozorilo_i <- logical()
         
         for(j in seq_along(razbitje_spremenljivke)){
           n_col <- ncol(list_razbitje_nom[[i]][[j]]$temp_df)
