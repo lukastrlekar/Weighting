@@ -464,7 +464,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       frekvence_rel_razlike_neutezene <- count_rel_diff(vec = merge_tabela_st[[10]], p_vec = merge_tabela_st[[12]])
       frekvence_rel_razlike_utezene <- count_rel_diff(vec = merge_tabela_st[[17]], p_vec = merge_tabela_st[[19]])
       
-      tbl_st <- data.frame("Relativne razlike (RB)" = c("RB > 20%", "10% < RB ≤ 20%", "5% ≤ RB ≤ 10%", "RB < 5%"),
+      tbl_st <- data.frame("Relativne razlike (RR)" = c("RR > 20%", "10% < RR ≤ 20%", "5% ≤ RR ≤ 10%", "RR < 5%"),
                            # neutežene statistike
                            "f" = frekvence_rel_razlike_neutezene$sums,
                            "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
@@ -875,7 +875,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       frekvence_rel_razlike_neutezene_nom <- count_rel_diff(vec = neutezene_kategorije[[1]], p_vec = neutezene_kategorije[[2]])
       frekvence_rel_razlike_utezene_nom <- count_rel_diff(vec = utezene_kategorije[[1]], p_vec = utezene_kategorije[[2]])
       
-      tbl_nom <- data.frame("Relativne razlike (RB)" = c("RB > 20%", "10% < RB ≤ 20%", "5% ≤ RB ≤ 10%", "RB < 5%"),
+      tbl_nom <- data.frame("Relativne razlike (RR)" = c("RR > 20%", "10% < RR ≤ 20%", "5% ≤ RR ≤ 10%", "RR < 5%"),
                             # neutežene statistike
                             "f" = frekvence_rel_razlike_neutezene_nom$sums,
                             "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),

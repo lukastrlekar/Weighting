@@ -393,25 +393,25 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
               if(isTRUE(rel_razlike[[s]][i,j] > 20 & p_vrednosti_col[[s]][i,j] < 0.1)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#EC8984"),
+                         style = createStyle(fgFill = "#E14B43"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] > 10 & p_vrednosti_col[[s]][i,j] < 0.1)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#F5C0BD"),
+                         style = createStyle(fgFill = "#F2AFAC"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
-              } else if(isTRUE(rel_razlike[[s]][i,j] > 5 & p_vrednosti_col[[s]][i,j] < 0.1)){
+              } else if(isTRUE(rel_razlike[[s]][i,j] >= 5 & p_vrednosti_col[[s]][i,j] < 0.1)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#FBE9E9"),
+                         style = createStyle(fgFill = "#FCEAEA"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] < -20 & p_vrednosti_col[[s]][i,j] < 0.1)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#538DD5"),
+                         style = createStyle(fgFill = "#3174C5"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] < -10 & p_vrednosti_col[[s]][i,j] < 0.1)){
@@ -420,10 +420,10 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                          style = createStyle(fgFill = "#8DB4E2"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
-              } else if(isTRUE(rel_razlike[[s]][i,j] < -5 & p_vrednosti_col[[s]][i,j] < 0.1)){
+              } else if(isTRUE(rel_razlike[[s]][i,j] <= -5 & p_vrednosti_col[[s]][i,j] < 0.1)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#C5D9F1"),
+                         style = createStyle(fgFill = "#D7E5F5"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               }
@@ -437,25 +437,25 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
               if(isTRUE(rel_razlike[[s]][i,j] > 20)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#EC8984"),
+                         style = createStyle(fgFill = "#E14B43"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] > 10)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#F5C0BD"),
+                         style = createStyle(fgFill = "#F2AFAC"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
-              } else if(isTRUE(rel_razlike[[s]][i,j] > 5)){
+              } else if(isTRUE(rel_razlike[[s]][i,j] >= 5)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#FBE9E9"),
+                         style = createStyle(fgFill = "#FCEAEA"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] < -20)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#538DD5"),
+                         style = createStyle(fgFill = "#3174C5"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               } else if(isTRUE(rel_razlike[[s]][i,j] < -10)){
@@ -464,10 +464,10 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                          style = createStyle(fgFill = "#8DB4E2"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
-              } else if(isTRUE(rel_razlike[[s]][i,j] < -5)){
+              } else if(isTRUE(rel_razlike[[s]][i,j] <= -5)){
                 addStyle(wb = wb,
                          sheet = sheet_name,
-                         style = createStyle(fgFill = "#C5D9F1"),
+                         style = createStyle(fgFill = "#D7E5F5"),
                          rows = 16 + vsota[s] + i, cols = stolpci[j],
                          gridExpand = TRUE, stack = TRUE)
               }
@@ -493,19 +493,19 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 startCol = 1, startRow = 3)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Zmerna pozitivna (10 % – 20 %)",
+                x = "Zmerna pozitivna (10 % – 20 %]",
                 startCol = 1, startRow = 4)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Šibka pozitivna (5 % – 10 %)",
+                x = "Šibka pozitivna [5 % – 10 %]",
                 startCol = 1, startRow = 5)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Šibka negativna (-5 % – -10 %) ",
+                x = "Šibka negativna [-5 % – -10 %] ",
                 startCol = 1, startRow = 6)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Zmerna negativna (-10 % – -20 %)",
+                x = "Zmerna negativna (-10 % – -20 %]",
                 startCol = 1, startRow = 7)
       writeData(wb = wb,
                 sheet = sheet_name,
@@ -513,7 +513,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 startCol = 1, startRow = 8)
       
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#E8746E"),
+               style = createStyle(fgFill = "#E14B43"),
                rows = 3, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
@@ -521,11 +521,11 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                rows = 4, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#F9DCDB"),
+               style = createStyle(fgFill = "#FCEAEA"),
                rows = 5, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#C5D9F1"),
+               style = createStyle(fgFill = "#D7E5F5"),
                rows = 6, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
@@ -533,7 +533,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                rows = 7, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#538DD5"),
+               style = createStyle(fgFill = "#3174C5"),
                rows = 8, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       
@@ -640,7 +640,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     p_vrednosti_povzetek_neut <- unlist(razbitje_list_neutezeno$p_vrednosti, use.names = FALSE)
     frekvence_rel_razlike_neutezene <- count_rel_diff(vec = rel_razlike_povzetek_neut, p_vec = p_vrednosti_povzetek_neut)
     
-    tbl_st <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+    tbl_st <- data.frame("Relativne razlike (RR)" = c("RR > 20%", "10% < RR ≤ 20%", "5% ≤ RR ≤ 10%", "RR < 5%"),
                          # neutežene statistike
                          "f" = frekvence_rel_razlike_neutezene$sums,
                          "%" = frekvence_rel_razlike_neutezene$sums/sum(frekvence_rel_razlike_neutezene$sums),
@@ -883,12 +883,15 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                              "",
                              colnames(temp_table),
                              "Skupaj")
-      # frekvence
-      temp_df[c(seq(1, by = 3, length.out = nrow(temp_table)), nrow(temp_df) - 1), -c(1,2)] <- round(addmargins(temp_table))
       
-      # odstotki po vrsticah
-      temp_df[c(seq(2, by = 3, length.out = nrow(temp_table))), -c(1,2)] <- addmargins(prop.table(temp_table, margin = 1), margin = 2)
-      temp_df[nrow(temp_df), -c(1,2)] <- c(colSums(temp_table)/sum(temp_table), 1)
+      if(nrow(temp_table) > 0){
+        # frekvence
+        temp_df[c(seq(1, by = 3, length.out = nrow(temp_table)), nrow(temp_df) - 1), -c(1,2)] <- round(addmargins(temp_table))
+        
+        # odstotki po vrsticah
+        temp_df[c(seq(2, by = 3, length.out = nrow(temp_table))), -c(1,2)] <- addmargins(prop.table(temp_table, margin = 1), margin = 2)
+        temp_df[nrow(temp_df), -c(1,2)] <- c(colSums(temp_table)/sum(temp_table), 1)
+      }
       
       # prilagojeni standardizirani reziduali
       res_rows <- c(seq(3, by = 3, length.out = nrow(temp_table)))
@@ -939,7 +942,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                           error = function(e){
                             NA})
       
-      # predpostavka X2: vsaj 80% teoretičnih frekvenc >= 5 in nobena celica nima < 1
+      # predpostavka X2: vsaj 80% teoretičnih frekvenc >= 5 in/ali nobena celica nima < 1
       opozorilo <- tryCatch({
         (mean(hi_test$expected < 5, na.rm = TRUE) >= 0.2) || (min(hi_test$expected, na.rm = TRUE) < 1)},
         error = function(e){
@@ -1061,112 +1064,114 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           
           # združi se celice za kategorije
           st_v <- nrow(list_razbitje_nom[[i]][[j]]$temp_df)
-          merge_cells_rows <- seq(1, st_v - 2, by = 3)
-          
-          for(k in seq_along(merge_cells_rows)){
-            r_b <- 12 + vsota_razbitje[[i]][j] + merge_cells_rows[k]
+          if(st_v != 2){
+            merge_cells_rows <- seq(1, st_v - 2, by = 3)
             
-            mergeCells(wb = wb, sheet = sheet_name,
-                       cols = 1,
-                       rows = r_b : (r_b + 2))
-            
-            # obarvanje rel. razlik deležev
-            temp_del <- list_razbitje_nom[[i]][[j]]$temp_df_del[k,]
-            temp_res <- list_razbitje_nom[[i]][[j]]$temp_df_res[k,]
-            
-            if(color_sig){ # obarvanje rel. razlik le, če je p < 0.1
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#FBE9E9"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 5 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
+            for(k in seq_along(merge_cells_rows)){
+              r_b <- 12 + vsota_razbitje[[i]][j] + merge_cells_rows[k]
               
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#F5C0BD"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 10 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
+              mergeCells(wb = wb, sheet = sheet_name,
+                         cols = 1,
+                         rows = r_b : (r_b + 2))
               
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#EC8984"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 20 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
+              # obarvanje rel. razlik deležev
+              temp_del <- list_razbitje_nom[[i]][[j]]$temp_df_del[k,]
+              temp_res <- list_razbitje_nom[[i]][[j]]$temp_df_res[k,]
               
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#C5D9F1"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -5 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#8DB4E2"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -10 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#538DD5"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -20 & abs(temp_res) >= 1.64) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-            } else { # obarvanje vseh rel. razlik
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#FBE9E9"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 5) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#F5C0BD"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 10) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#EC8984"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del > 20) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#C5D9F1"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -5) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#8DB4E2"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -10) + 2,
-                       gridExpand = TRUE, stack = TRUE)
-              
-              addStyle(wb = wb,
-                       sheet = sheet_name,
-                       style = createStyle(fgFill = "#538DD5"),
-                       rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
-                       cols = which(temp_del < -20) + 2,
-                       gridExpand = TRUE, stack = TRUE)
+              if(color_sig){ # obarvanje rel. razlik le, če je p < 0.1
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#FCEAEA"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del >= 5 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#F2AFAC"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del > 10 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#E14B43"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del > 20 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#D7E5F5"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del <= -5 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#8DB4E2"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del < -10 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#3174C5"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del < -20 & abs(temp_res) >= 1.64) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+              } else { # obarvanje vseh rel. razlik
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#FCEAEA"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del >= 5) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#F2AFAC"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del > 10) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#E14B43"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del > 20) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#D7E5F5"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del <= -5) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#8DB4E2"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del < -10) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+                
+                addStyle(wb = wb,
+                         sheet = sheet_name,
+                         style = createStyle(fgFill = "#3174C5"),
+                         rows = 12 + vsota_razbitje[[i]][j] + (merge_cells_rows[k]+1),
+                         cols = which(temp_del < -20) + 2,
+                         gridExpand = TRUE, stack = TRUE)
+              }
             }
+            
+            addStyle(wb = wb, sheet = sheet_name,
+                     style = createStyle(border = c("bottom")),
+                     rows = 11 + vsota_razbitje[[i]][j] + merge_cells_rows,
+                     cols = 1:n_col,
+                     gridExpand = TRUE, stack = TRUE)
           }
-          
-          addStyle(wb = wb, sheet = sheet_name,
-                   style = createStyle(border = c("bottom")),
-                   rows = 11 + vsota_razbitje[[i]][j] + merge_cells_rows,
-                   cols = 1:n_col,
-                   gridExpand = TRUE, stack = TRUE)
           
           addStyle(wb = wb, sheet = sheet_name,
                    style = createStyle(border = c("right")),
@@ -1216,25 +1221,26 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 x = paste0("Relativna razlika glede na skupni delež stolpca",
                            ifelse(color_sig, " & std. rez. p < 0.1", ""), ":"),
                 startCol = 1, startRow = 2)
+      
       writeData(wb = wb,
                 sheet = sheet_name,
                 x = "Visoka pozitivna (> 20 %)",
                 startCol = 1, startRow = 3)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Zmerna pozitivna (10 % – 20 %)",
+                x = "Zmerna pozitivna (10 % – 20 %]",
                 startCol = 1, startRow = 4)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Šibka pozitivna (5 % – 10 %)",
+                x = "Šibka pozitivna [5 % – 10 %]",
                 startCol = 1, startRow = 5)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Šibka negativna (-5 % – -10 %) ",
+                x = "Šibka negativna [-5 % – -10 %] ",
                 startCol = 1, startRow = 6)
       writeData(wb = wb,
                 sheet = sheet_name,
-                x = "Zmerna negativna (-10 % – -20 %)",
+                x = "Zmerna negativna (-10 % – -20 %]",
                 startCol = 1, startRow = 7)
       writeData(wb = wb,
                 sheet = sheet_name,
@@ -1242,7 +1248,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                 startCol = 1, startRow = 8)
       
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#E8746E"),
+               style = createStyle(fgFill = "#E14B43"),
                rows = 3, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
@@ -1250,11 +1256,11 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                rows = 4, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#F9DCDB"),
+               style = createStyle(fgFill = "#FCEAEA"),
                rows = 5, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#C5D9F1"),
+               style = createStyle(fgFill = "#D7E5F5"),
                rows = 6, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
@@ -1262,7 +1268,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                rows = 7, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       addStyle(wb = wb, sheet = sheet_name,
-               style = createStyle(fgFill = "#538DD5"),
+               style = createStyle(fgFill = "#3174C5"),
                rows = 8, cols = 1,
                gridExpand = TRUE, stack = TRUE)
       
@@ -1327,7 +1333,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
     frekvence_rel_razlike_neutezene_nom <- count_rel_diff_rez(vec = rel_razlike_povzetek_neut_nom,
                                                               p_vec = p_vrednosti_povzetek_neut_nom)
     
-    tbl_nom <- data.frame("Relativne razlike" = c("> 20%", "(10% - 20%]", "[5% - 10%]", "< 5%"),
+    tbl_nom <- data.frame("Relativne razlike (RR)" = c("RR > 20%", "10% < RR ≤ 20%", "5% ≤ RR ≤ 10%", "RR < 5%"),
                           # neutežene statistike
                           "f" = frekvence_rel_razlike_neutezene_nom$sums,
                           "%" = frekvence_rel_razlike_neutezene_nom$sums/sum(frekvence_rel_razlike_neutezene_nom$sums),
