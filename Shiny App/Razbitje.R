@@ -343,8 +343,8 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
           
           string <- paste0(string_min, " ; ", string_max)
         } else {
-          string <- paste0(min(baza1[[stevilske_spremenljivke[i]]], na.rm = TRUE), " - ",
-                           max(baza1[[stevilske_spremenljivke[i]]], na.rm = TRUE))
+          string <- paste0(round(min(baza1[[stevilske_spremenljivke[i]]], na.rm = TRUE), 2), " - ",
+                           round(max(baza1[[stevilske_spremenljivke[i]]], na.rm = TRUE), 2))
         }
         
         writeData(wb = wb, sheet = sheet_name,
