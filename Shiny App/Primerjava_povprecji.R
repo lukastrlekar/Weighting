@@ -1205,22 +1205,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),2])
     
     # neuteženi podatki
-    # skupno število stat. značilnih spremenljivk
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),3] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),3])
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),4] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),3]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
-    
-    # skupna frekvenca spr. z RB >20, >10, >5
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(5,7,9)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(5,7,9)])
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(6,8,10)] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(5,7,9)]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
+    # skupno število stat. značilnih spremenljivk in skupna frekvenca spr. z RB >20, >10, >5
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(3,5,7,9)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(3,5,7,9)])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(4,6,8,10)] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(3,5,7,9)]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
     
     # uteženi podatki
-    # skupno število stat. značilnih spremenljivk
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),11] <- sum(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),11])
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),12] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),11]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
-    
     # skupna frekvenca spr. z RB >20, >10, >5
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(13,15,17)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(13,15,17)])
-    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(14,16,18)] <- frekvence_rel_razlike_utezene$p_sums[-length(frekvence_rel_razlike_utezene$p_sums)]/povzetek_tbl_st[,2]
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(11,13,15,17)] <- colSums(povzetek_tbl_koncna[-nrow(povzetek_tbl_koncna),c(11,13,15,17)])
+    povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(12,14,16,18)] <- povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),c(11,13,15,17)]/povzetek_tbl_koncna[nrow(povzetek_tbl_koncna),2]
   }
   
   writeData(wb = wb,
