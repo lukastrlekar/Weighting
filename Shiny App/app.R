@@ -44,11 +44,11 @@ ui <- fluidPage(
     
     column(12,
            checkboxInput(inputId = "checkbox_razbitje",
-                         label = "Razbitje (analiza povprečij po skupinah kontrolnih spremenljivk za številske spremenljivke in dvodimenzionalne kontingenčne tabele za nominalne spremenljivke)",
+                         label = "Razbitje (analiza povprečij po skupinah kontrolnih spremenljivk za številske spremenljivke in dvodimenzionalne kontingenčne tabele za kategorialne spremenljivke)",
                          width = "100%")),
     conditionalPanel(condition = "input.checkbox_razbitje == 1",
                      column(12,
-                            p(strong("Opozorilo:"), "v primeru izbranega večjega števila opisnih spremenljivk (> 20) in hkrati tudi spremenljivk razbitja (> 10),
+                            p(strong("Opozorilo:"), "v primeru izbranega večjega števila kategorialnih spremenljivk (> 20) in hkrati tudi spremenljivk razbitja (> 10),
                               lahko izvedba analiz in izvoz datoteke traja dlje časa (> 1 ura). Priporočamo lokalno uporabo, saj se pri aplikaciji na spletu po 15 minutah prekine povezava.")))),
   
   fluidRow(
@@ -97,7 +97,7 @@ ui <- fluidPage(
     column(6,
            pickerInput(
              inputId = "nominalne_spr",
-             label = "Izberi opisne spremenljivke (nominalna in ordinalna merska lestvica):",
+             label = "Izberi kategorialne spremenljivke (nominalna in ordinalna merska lestvica):",
              choices = NULL,
              multiple = TRUE,
              width = "100%",
@@ -259,8 +259,8 @@ ui <- fluidPage(
                                              icon = icon("play")),
                               br(),
                               br(),
-                              p("Če ste izbrali opisne spremenljivke, bodo pri izračunu korelacij upoštevane le dihotomne spremenljivke,
-                 saj je izračun Pearsonove korelacije v primeru opisnih spremenljivk mogoč le med številsko in dihotomno spremenljivko (biserialna korelacija)
+                              p("Če ste izbrali kategorialne spremenljivke, bodo pri izračunu korelacij upoštevane le dihotomne spremenljivke,
+                 saj je izračun Pearsonove korelacije v primeru kategorialnih spremenljivk mogoč le med številsko in dihotomno spremenljivko (biserialna korelacija)
                  ali med dvema dihotomnima spremenljivkama (koeficient Phi)."),
                               p(HTML('<strong>Metodološko pojasnilo:</strong> preverja se ničelna hipoteza, da je razlika med dvema korelacijskima koeficientoma enaka 0. Ker gre za 2 neodvisna vzorca,
                      je uporabljen Fisherjev <i>z</i> test (1925), implementiran v paketu <a href="http://comparingcorrelations.org/" target="_blank"><tt>cocor</tt></a>.

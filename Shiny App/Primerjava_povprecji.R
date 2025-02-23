@@ -649,7 +649,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     
     if(length(non_spr) != 0){
       writeData(wb = wb, sheet = "Opozorila", xy = c(1,5),
-                x = paste("Imena podanih opisnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
+                x = paste("Imena podanih kategorialnih spremenljivk se ne ujemajo v obeh bazah. To so spremenljivke", paste(non_spr, collapse = ", "), "in so bile zato odstranjene iz analiz."))
       
       warning_counter <- TRUE
     }
@@ -664,13 +664,13 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       data2 <- as_factor(baza2[[spr]])
       
       if(!all(levels(data1) == levels(data2))){
-        return(paste("Kategorije v bazah se pri opisni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorije v bazah se pri kategorialni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
         
       } else if(all(is.na(data1)) | all(is.na(data2))) {
-        return(paste("Opisna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorialna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
         
       } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
-        return(paste("Opisna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        return(paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
 
       } else {
         ## Neutežene statistike ----------------------------------------------------
@@ -910,7 +910,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                                           halign = "center", valign = "center"))
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = "Opisne (nominalne, ordinalne) spremenljivke", startCol = 2, startRow = 15)
+                x = "Kategorialne (nominalne, ordinalne) spremenljivke", startCol = 2, startRow = 15)
       
       mergeCells(wb = wb, sheet = "Povzetek", cols = 2:19, rows = 15)
       
@@ -951,12 +951,12 @@ izvoz_excel_tabel <- function(baza1 = NULL,
                 startCol = 1, startRow = 24, rowNames = FALSE, colNames = FALSE)
       
       writeData(wb = wb, sheet = "Povzetek",
-                x = cbind(c(paste("Št. vseh opisnih spremenljivk:", length(factor_tables)),
-                            paste("Št. statistično značilnih opisnih spremenljivk (p < 0.05) - neuteženi podatki:",
+                x = cbind(c(paste("Št. vseh kategorialnih spremenljivk:", length(factor_tables)),
+                            paste("Št. statistično značilnih kategorialnih spremenljivk (p < 0.05) - neuteženi podatki:",
                                   sum(vapply(seq_along(temp_factor_tables), function(i){
                                     any(temp_factor_tables[[i]][[9]][!opozorilo_numerus[[i]][["p_neutez"]]] < 0.05)
                                   }, FUN.VALUE = logical(1)))),
-                            paste("Št. statistično značilnih opisnih spremenljivk (p < 0.05) - uteženi podatki:", 
+                            paste("Št. statistično značilnih kategorialnih spremenljivk (p < 0.05) - uteženi podatki:", 
                                   sum(vapply(seq_along(temp_factor_tables), function(i){
                                     any(temp_factor_tables[[i]][[18]][!opozorilo_numerus[[i]][["p_utez"]]] < 0.05)
                                   }, FUN.VALUE = logical(1)))))),
@@ -1166,7 +1166,7 @@ izvoz_excel_tabel <- function(baza1 = NULL,
   if(nom_spr_ind){
     povzetek_tbl_nom <- povzetek_tbl
     
-    povzetek_tbl_nom[,1] <- "Opisne"
+    povzetek_tbl_nom[,1] <- "Kategorialne"
     
     # skupno št. kategorij
     povzetek_tbl_nom[,2] <- st_kategorij

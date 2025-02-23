@@ -1,5 +1,3 @@
-# TODO preveri, da se pri neuteženih ne uporablja survey funkcij, ker avtomatsko upošteva uteži
-
 # any(class(survey_design) %in% "survey.design") - dodaj survey design in možnost izračuna SE 
 
 # svyglm že privzeto izračuna heteroscedasticity robust standard errors (okvirno HC0)
@@ -1385,7 +1383,7 @@ izvoz_excel_razbitje <- function(baza1 = NULL,
                                         halign = "center", valign = "center", wrapText = TRUE))
     
     writeData(wb = wb, sheet = "Povzetek",
-              x = "Kontingenčne tabele za nominalne spremenljivke", startCol = 2, startRow = 17)
+              x = "Kontingenčne tabele za kategorialne spremenljivke", startCol = 2, startRow = 17)
     
     mergeCells(wb = wb, sheet = "Povzetek", cols = 2:ncol(tbl_nom), rows = 17)
     
