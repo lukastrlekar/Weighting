@@ -673,6 +673,16 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         return(paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
 
       } else {
+        # preveri in izloči prazne kategorije (n=0) v obeh bazah
+        tab1 <- table(data1)
+        tab2 <- table(data2)
+        
+        k1 <- names(tab1)[tab1 == 0]
+        k2 <- names(tab2)[tab2 == 0]
+        
+        levels(data1)[levels(data1) %in% k1[k1 %in% k2]] <- NA
+        levels(data2)[levels(data2) %in% k2[k2 %in% k1]] <- NA
+        
         ## Neutežene statistike ----------------------------------------------------
         labela1 <- attr(baza1[[spr]], "label", exact = TRUE)
         labela2 <- attr(baza2[[spr]], "label", exact = TRUE)
@@ -839,10 +849,10 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       opozorilo_numerus <- lapply(temp_factor_tables, FUN = function(x) {
         last_row <- length(x[[2]])
         # neuteženi
-        n1 <- x[[2]][last_row]
-        n2 <- x[[3]][last_row]
-        rev1 <- n1 - x[[2]][-last_row]
-        rev2 <- n2 - x[[3]][-last_row]
+        n1n <- x[[2]][last_row]
+        n2n <- x[[3]][last_row]
+        rev1 <- n1n - x[[2]][-last_row]
+        rev2 <- n2n - x[[3]][-last_row]
         
         # uteženi podatki
         n1u <- x[[11]][last_row]
