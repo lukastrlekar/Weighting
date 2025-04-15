@@ -660,17 +660,20 @@ izvoz_excel_tabel <- function(baza1 = NULL,
     # funkcija za neutežene in utežene frekvenčne statistike
     tabela_nominalne <- function(spr, baza1, baza2, utezi1, utezi2){
       
+      output <- list("opozorila" = NULL,
+                     "tabele" = NULL)
+      
       data1 <- as_factor(baza1[[spr]])
       data2 <- as_factor(baza2[[spr]])
       
       if(!all(levels(data1) == levels(data2))){
-        return(paste("Kategorije v bazah se pri kategorialni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz."))
+        output$opozorila <- paste("Kategorije v bazah se pri kategorialni spremenljivki", spr, "ne ujemajo. Spremenljivka je bila izločena iz analiz.")
         
       } else if(all(is.na(data1)) | all(is.na(data2))) {
-        return(paste("Kategorialna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        output$opozorila <- paste("Kategorialna spremenljivka", spr, "ima vse vrednosti manjkajoče (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz.")
         
       } else if(length(unique(na.omit(data1))) == 1 | length(unique(na.omit(data2))) == 1) {
-        return(paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz."))
+        output$opozorila <- paste("Kategorialna spremenljivka", spr, "je konstanta (v eni ali obeh bazah). Spremenljivka je bila izločena iz analiz.")
 
       } else {
         # preveri in izloči prazne kategorije (n=0) v obeh bazah
@@ -680,8 +683,14 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         k1 <- names(tab1)[tab1 == 0]
         k2 <- names(tab2)[tab2 == 0]
         
-        levels(data1)[levels(data1) %in% k1[k1 %in% k2]] <- NA
-        levels(data2)[levels(data2) %in% k2[k2 %in% k1]] <- NA
+        k1_i_k2 <- intersect(k1, k2)
+        
+        if(length(k1_i_k2) != 0){
+          levels(data1)[levels(data1) %in% k1_i_k2] <- NA
+          levels(data2)[levels(data2) %in% k1_i_k2] <- NA
+          
+          output$opozorila <- paste0("Pri spremenljivki ", spr, " so bile iz analiz izločene naslednje kategorije, saj so bile prazne v obeh bazah: ", paste0(k1_i_k2, collapse = ", "), ".")
+        }
         
         ## Neutežene statistike ----------------------------------------------------
         labela1 <- attr(baza1[[spr]], "label", exact = TRUE)
@@ -801,27 +810,29 @@ izvoz_excel_tabel <- function(baza1 = NULL,
         
         tabela_nom_u <- rbind(tabela_nom_u, temp_df_u)
         
-        return(cbind(tabela_nom, tabela_nom_u))
+        output$tabele <- cbind(tabela_nom, tabela_nom_u)
       }
+      return(output)
     }
     
     ## Izvoz excel -------------------------------------------------------------
     
-    factor_tables <- lapply(nominalne_spremenljivke, function(x) tabela_nominalne(spr = x, baza1 = baza1, baza2 = baza2, utezi1 = utezi1, utezi2 = utezi2))
+    factor_tables_list <- lapply(nominalne_spremenljivke, function(x) tabela_nominalne(spr = x, baza1 = baza1, baza2 = baza2, utezi1 = utezi1, utezi2 = utezi2))
+    factor_tables <- lapply(factor_tables_list, "[[", "tabele")
     
     # dodamo še opozorila, če so prisotna
-    vsota <- cumsum(sapply(factor_tables, is.character))
+    vsota <- cumsum(sapply(lapply(factor_tables_list, "[[", "opozorila"), is.character))
     
     for(i in seq_along(factor_tables)){
-      if(is.character(factor_tables[[i]])){
+      if(is.character(factor_tables_list[[i]]$opozorila)){
         writeData(wb = wb, sheet = "Opozorila", startCol = 1, startRow = 5 + vsota[i],
-                  x = factor_tables[[i]])
+                  x = factor_tables_list[[i]]$opozorila)
         
         warning_counter <- TRUE
       }
     }
     
-    factor_tables <- factor_tables[!vapply(factor_tables, is.character, FUN.VALUE = logical(1))]
+    factor_tables <- factor_tables[!vapply(factor_tables, is.null, FUN.VALUE = logical(1))]
     
     if(length(factor_tables) > 0){
       
