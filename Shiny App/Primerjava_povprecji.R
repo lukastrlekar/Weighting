@@ -1104,7 +1104,8 @@ izvoz_excel_tabel <- function(baza1 = NULL,
       
       if(any(unlist(opozorilo_numerus))) {
         writeData(wb = wb, sheet = "Frekvencne tabele",
-                  x = "Opozorilo: Število enot v celici je premajhno za zanesljivo oceno p-vrednosti (np ≤ 5 ali n(1-p) ≤ 5).", startCol = 1, startRow = 1)
+                  x = "Opozorilo: Število enot v celici je premajhno za zanesljivo oceno p-vrednosti (np ≤ 5 ali n(1-p) ≤ 5). Te kategorije se ne upoštevajo v zavihku Povzetek.",
+                  startCol = 1, startRow = 1)
         
         addStyle(wb = wb, sheet = "Frekvencne tabele",
                  style = createStyle(fgFill = "#D9D9D9", wrapText = TRUE), rows = 1, cols = 1,
